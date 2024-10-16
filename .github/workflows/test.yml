@@ -1,0 +1,33 @@
+# This is a basic workflow to help you get started with Actions
+
+name: test-actions
+
+# Controls when the workflow will run
+on:
+  pull_request:
+    types:
+      - review
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  sync-repos:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v2
+      
+    #- name: 设置环境变量
+    #  run: |
+    #    echo "REPO_PATH=你的repo配置文件的路径" >> $GITHUB_ENV
+
+    - name: repo init
+      run: |
+        repo init -u git@github.com:zhn-test/manifest.git -b main
+        echo "REPO_INIT=true" >> $GITHUB_ENV
+
+    - name: repo sync
+      run: |
+        repo sync -c -d --no-tags -j12
