@@ -39,9 +39,13 @@ jobs:
         echo 'export PATH=~/bin:$PATH' >> $HOME/.bashrc
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
+        whereis repo
+        which repo
 
     - name: Verify repo installation
-      run: repo --version
+      run: |
+        ~/bin/repo --version
+        repo --version
 
     - name: repo init
       run: |
