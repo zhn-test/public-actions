@@ -39,19 +39,16 @@ jobs:
         echo 'export PATH=~/bin:$PATH' >> $HOME/.bashrc
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
-        whereis repo
-        which repo
 
     - name: Verify repo installation
       run: |
         ~/bin/repo --version
-        repo --version
 
     - name: repo init
       run: |
-        repo init -u git@github.com:zhn-test/manifest.git -b main
+        ~/bin/repo init -u git@github.com:zhn-test/manifest.git -b main
         echo "REPO_INIT=true" >> $GITHUB_ENV
 
     - name: repo sync
       run: |
-        repo sync -c -d --no-tags -j12
+        ~/bin/repo sync -c -d --no-tags -j12
