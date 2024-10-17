@@ -22,6 +22,26 @@ jobs:
     #- name: 设置环境变量
     #  run: |
     #    echo "REPO_PATH=你的repo配置文件的路径" >> $GITHUB_ENV
+    
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Update and install git
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git
+
+    - name: Download and install repo
+      run: |
+        mkdir ~/bin
+        echo 'export PATH=~/bin:$PATH' >> $HOME/.bashrc
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+
+    - name: Verify repo installation
+      run: repo --version
 
     - name: repo init
       run: |
