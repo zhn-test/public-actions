@@ -21,6 +21,8 @@ jobs:
     steps:
     - name: 检出代码
       uses: actions/checkout@v4
+      with:
+          ref: ${{ github.head_ref }}
       
     #- name: 设置环境变量
     #  run: |
@@ -71,3 +73,16 @@ jobs:
     - name: repo sync
       run: |
         ~/bin/repo sync -c -d --no-tags -j12
+
+    - name: Fetch PR
+      run: |
+        REPO_PATH=$(echo "${{ github.event.pull_request.head.repo.full_name }}" | sed 's|/|.repo/manifests/default.xml|')
+        cd $REPO_PATH
+        git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-branch
+        git checkout pr-branch
+        cd -
+
+    - name: Run CI
+      run: |
+        # 这里添加你的编译或测试命令
+        echo "Running CI for all checked out PRs..."
