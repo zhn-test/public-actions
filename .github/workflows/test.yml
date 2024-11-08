@@ -77,9 +77,10 @@ jobs:
 
     - name: Fetch PR
       run: |
-        REPO_PATH=$(echo "${{ github.event.pull_request.base.repo.full_name }}" | sed 's|/|/.repo/manifests/default.xml|')
+        current_path=$(pwd)
+        echo $current_path
+        REPO_PATH=$(cat .repo/manifests/default.xml | grep "\"${{ github.event.pull_request.base.repo.full_name }}\"" | awk -F'"' '{print $2}')
         echo $REPO_PATH
-        echo $(pwd)
         cd $REPO_PATH
         git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-branch
         git checkout pr-branch
