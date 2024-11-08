@@ -79,6 +79,7 @@ jobs:
       run: |
         current_path=$(pwd)
         echo $current_path
+        ls -atl
         REPO_PATH=$(cat .repo/manifests/default.xml | grep "\"${{ github.event.pull_request.base.repo.full_name }}\"" | awk -F'"' '{print $2}')
         echo $REPO_PATH
         cd $REPO_PATH
