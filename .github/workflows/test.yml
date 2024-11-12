@@ -92,7 +92,7 @@ jobs:
         echo $current_path1
         echo $(ls -atl)
         echo "in in in in in"
-        git fetch vela pull/${{ github.event.pull_request.number }}/head:pr-branch
+        git fetch openvela pull/${{ github.event.pull_request.number }}/head:pr-branch
         git checkout pr-branch
         echo $(cat test)
         cd -
