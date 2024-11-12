@@ -82,7 +82,13 @@ jobs:
         echo $(ls -atl)
         REPO_PATH=$(cat .repo/manifests/default.xml | grep "\"${{ github.event.pull_request.base.repo.full_name }}\"" | awk -F'"' '{print $2}')
         echo $REPO_PATH
+        echo "-------------"
         cd $REPO_PATH
+        echo "++++++++++++++++"
+        current_path1=$(pwd)
+        echo $current_path1
+        echo $(ls -atl)
+        echo "in in in in in"
         git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-branch
         git checkout pr-branch
         cd -
