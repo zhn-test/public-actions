@@ -76,6 +76,7 @@ jobs:
         ~/bin/repo sync -c -d --no-tags -j12
 
     - name: Fetch PR
+      if: ${{ github.event_name == 'pull_request' }}
       run: |
         current_path=$(pwd)
         echo $current_path
