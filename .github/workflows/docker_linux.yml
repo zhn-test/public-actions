@@ -37,7 +37,7 @@ jobs:
   push:
     runs-on: ubuntu-latest
     env:
-      IMAGE_TAG: ghcr.io/${{ github.repository }}/openvela-ci-linux
+      IMAGE_TAG: ghcr.io/zhn-test/openvela-ci-linux
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
