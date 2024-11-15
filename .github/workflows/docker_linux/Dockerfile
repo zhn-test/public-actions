@@ -62,10 +62,6 @@ RUN mkdir -p /tools/bloaty \
   && cmake --build build --target install \
   && cd /tools && rm -rf bloaty-src
 
-RUN cd openvela-tools/kconfig-frontends \
-  && ./configure --enable-mconf --disable-gconf --disable-qconf --enable-static --prefix=/tools/kconfig-frontends \
-  && make install && cd /tools && rm -rf openvela-tools
-
 RUN mkdir -p /tools/gn \
   && cd /tools/gn \
   && git clone https://gn.googlesource.com/gn gn \
@@ -388,9 +384,6 @@ WORKDIR /tools
 # Pull in the tools we just built for openvela
 COPY --from=openvela-tools /tools/bloaty/ bloaty/
 ENV PATH="/tools/bloaty/bin:$PATH"
-
-COPY --from=openvela-tools /tools/kconfig-frontends/ kconfig-frontends/
-ENV PATH="/tools/kconfig-frontends/bin:$PATH"
 
 # Pull in the Rust toolchain including supported targets
 COPY --from=openvela-tools /tools/rust/ /tools/rust/
