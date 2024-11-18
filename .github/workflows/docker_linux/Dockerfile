@@ -291,6 +291,7 @@ RUN dpkg --add-architecture i386
 RUN apt-get update -qq && DEBIAN_FRONTEND="noninteractive" TZ=Etc/UTC apt-get install -y -qq --no-install-recommends \
   -o APT::Immediate-Configure=0 \
   avr-libc \
+  ccache \
   clang \
   clang-tidy \
   g++-12-multilib \
