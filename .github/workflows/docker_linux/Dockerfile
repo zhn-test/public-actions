@@ -291,7 +291,6 @@ RUN dpkg --add-architecture i386
 RUN apt-get update -qq && DEBIAN_FRONTEND="noninteractive" TZ=Etc/UTC apt-get install -y -qq --no-install-recommends \
   -o APT::Immediate-Configure=0 \
   avr-libc \
-  ccache \
   clang \
   clang-tidy \
   g++-12-multilib \
@@ -451,34 +450,5 @@ COPY --from=openvela-tools /tools/zap/ /tools/zap/
 COPY --from=openvela-tools /tools/zap_release/ /tools/zap_release/
 ENV ZAP_INSTALL_PATH=/tools/zap_release
 ENV ZAP_DEVELOPMENT_PATH=/tools/zap
-
-# Configure ccache
-# use `/ccache` as cachedir for all users
-RUN mkdir -p /ccache && \
-  chmod 666 /ccache && \
-  mkdir -p /tools/ccache/bin && \
-  ln -sf `which ccache` /tools/ccache/bin/aarch64-none-elf-gcc && \
-  ln -sf `which ccache` /tools/ccache/bin/aarch64-none-elf-g++ && \
-  ln -sf `which ccache` /tools/ccache/bin/arm-none-eabi-gcc && \
-  ln -sf `which ccache` /tools/ccache/bin/arm-none-eabi-g++ && \
-  ln -sf `which ccache` /tools/ccache/bin/avr-gcc && \
-  ln -sf `which ccache` /tools/ccache/bin/avr-g++ && \
-  ln -sf `which ccache` /tools/ccache/bin/avr32-gcc && \
-  ln -sf `which ccache` /tools/ccache/bin/avr32-g++ && \
-  ln -sf `which ccache` /tools/ccache/bin/cc && \
-  ln -sf `which ccache` /tools/ccache/bin/c++ && \
-  ln -sf `which ccache` /tools/ccache/bin/clang && \
-  ln -sf `which ccache` /tools/ccache/bin/clang++ && \
-  ln -sf `which ccache` /tools/ccache/bin/gcc && \
-  ln -sf `which ccache` /tools/ccache/bin/g++ && \
-  ln -sf `which ccache` /tools/ccache/bin/p32-gcc && \
-  ln -sf `which ccache` /tools/ccache/bin/rx-elf-gcc && \
-  ln -sf `which ccache` /tools/ccache/bin/riscv-none-elf-gcc && \
-  ln -sf `which ccache` /tools/ccache/bin/riscv-none-elf-g++ && \
-  ln -sf `which ccache` /tools/ccache/bin/sparc-gaisler-elf-gcc && \
-  ln -sf `which ccache` /tools/ccache/bin/sparc-gaisler-elf-g++ && \
-
-ENV PATH="/tools/ccache/bin:$PATH"
-ENV CCACHE_DIR="/ccache"
 
 CMD [ "/bin/bash" ]
