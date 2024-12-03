@@ -27,6 +27,22 @@ jobs:
       with:
           ref: ${{ github.head_ref }}
       
+    - name: Add SSH key
+      env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      run: |
+        required_vars=("SSH_PRIVATE_KEY")
+          for var in "${required_vars[@]}"; do
+            if [ -z "${!var}" ]; then
+              echo "Error: Required environment variable $var is not set."
+              exit 1
+            fi
+          done
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+
     - name: Checkout nuttx repo
       if: ${{ github.repository != 'zhn-test/nuttx' }}
       uses: actions/checkout@v4
