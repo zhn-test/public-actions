@@ -19,21 +19,26 @@ concurrency:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  sync-repos:
+  checkpatch:
     runs-on: ubuntu-latest
     steps:
-    - name: 检出代码
+    - name: get repo name
+      run: |
+          echo "REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
+
+    - name: checkout pr
       uses: actions/checkout@v4
       id: checkout
       with:
+          path: ${{ env.REPO_NAME }} 
           ref: ${{ github.event.pull_request.head.ref }}
       
     - name: Checkout nuttx repo
-      if: ${{ github.repository != 'zhn-test/nuttx' }}
+      if: ${{ github.repository != '${{ github.repository_owner }}/nuttx' }}
       uses: actions/checkout@v4
       with:
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          repository: zhn-test/nuttx
+          repository: ${{ github.repository_owner }/nuttx
           ref: ${{ github.head_ref }}
           path: nuttx
           fetch-depth: 0
@@ -45,7 +50,7 @@ jobs:
         source .venv/bin/activate
         pip install cmake-format
         ls -atl
-        cd ${{ steps.checkout.outputs.REPO_PATH }}
+        cd ${{ env.REPO_NAME }}
         commits="${{ github.event.pull_request.base.sha }}..HEAD"
         git log --oneline $commits
         echo "../nuttx/tools/checkpatch.sh -u -m -g $commits"
