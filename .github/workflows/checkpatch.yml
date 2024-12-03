@@ -22,18 +22,18 @@ jobs:
   checkpatch:
     runs-on: ubuntu-latest
     steps:
-    - name: get repo name
+    - name: Get Repo Name
       run: |
           echo "REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
 
-    - name: checkout pr
+    - name: Checkout PR
       uses: actions/checkout@v4
       id: checkout
       with:
           path: ${{ env.REPO_NAME }} 
           ref: ${{ github.event.pull_request.head.ref }}
       
-    - name: Checkout nuttx repo
+    - name: Checkout Nuttx Repo
       if: ${{ github.repository != '${{ github.repository_owner }}/nuttx' }}
       uses: actions/checkout@v4
       with:
@@ -43,7 +43,7 @@ jobs:
           path: nuttx
           fetch-depth: 0
 
-    - name: Check Pull Request
+    - name: Check PR
       run: |
         echo "::add-matcher::nuttx/.github/nxstyle.json"
         python -m venv .venv
