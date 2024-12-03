@@ -28,10 +28,10 @@ jobs:
           ref: ${{ github.head_ref }}
       
     - name: Checkout nuttx repo
-      if: ${{ github.repository != 'open-vela/nuttx' }}
+      if: ${{ github.repository != 'zhn-test/nuttx' }}
       uses: actions/checkout@v4
       with:
-          repository: open-vela/nuttx
+          repository: zhn-test/nuttx
           ref: ${{ github.head_ref }}
           path: nuttx
           fetch-depth: 0
