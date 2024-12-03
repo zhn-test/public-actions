@@ -26,7 +26,7 @@ jobs:
       run: |
           echo "REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
 
-    - name: Checkout PR
+    - name: Checkout Repo
       uses: actions/checkout@v4
       id: checkout
       with:
@@ -51,6 +51,8 @@ jobs:
         pip install cmake-format
         ls -atl
         cd ${{ env.REPO_NAME }}
+        git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-branch
+        git checkout pr-branch
         commits="${{ github.event.pull_request.base.sha }}..HEAD"
         git log --oneline $commits
         echo "../nuttx/tools/checkpatch.sh -u -m -g $commits"
