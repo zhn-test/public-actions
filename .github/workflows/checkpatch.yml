@@ -27,11 +27,6 @@ jobs:
       id: checkout
       with:
           ref: ${{ github.event.pull_request.head.ref }}
-      run: |
-          git fetch openvela pull/${{ github.event.pull_request.number }}/head:pr-branch
-          git checkout pr-branch
-          current_path=$(pwd)
-          echo "REPO_PATH=$current_path" >> $GITHUB_ENV
       
     - name: Checkout nuttx repo
       if: ${{ github.repository != 'zhn-test/nuttx' }}
