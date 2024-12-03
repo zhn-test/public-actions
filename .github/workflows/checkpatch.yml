@@ -1,0 +1,49 @@
+# This is a basic workflow to help you get started with Actions
+
+name: checkpatch
+
+# Controls when the workflow will run
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+  # reusable
+  workflow_call:
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+concurrency:
+  group: check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  sync-repos:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+          ref: ${{ github.head_ref }}
+      
+    - name: Checkout nuttx repo
+      if: ${{ github.repository != 'open-vela/nuttx' }}
+      uses: actions/checkout@v4
+      with:
+          repository: open-vela/nuttx
+          ref: ${{ github.head_ref }}
+          path: nuttx
+          fetch-depth: 0
+
+    - name: Check Pull Request
+        run: |
+          echo "::add-matcher::nuttx/.github/nxstyle.json"
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install cmake-format
+          cd ${{ github.event.pull_request.head.repo.repo }}
+          commits="${{ github.event.pull_request.base.sha }}..HEAD"
+          git log --oneline $commits
+          echo "../nuttx/tools/checkpatch.sh -u -m -g $commits"
+          ../nuttx/tools/checkpatch.sh -u -m -g $commits
