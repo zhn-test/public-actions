@@ -43,7 +43,7 @@ jobs:
         python -m venv .venv
         source .venv/bin/activate
         pip install cmake-format
-        cd ${{ github.event.pull_request.head.repo.name }}
+        cd ${{ github.event.repository.name }}
         commits="${{ github.event.pull_request.base.sha }}..HEAD"
         git log --oneline $commits
         echo "../nuttx/tools/checkpatch.sh -u -m -g $commits"
