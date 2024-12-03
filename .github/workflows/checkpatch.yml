@@ -38,7 +38,7 @@ jobs:
       uses: actions/checkout@v4
       with:
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          repository: ${{ github.repository_owner }/nuttx
+          repository: ${{ github.repository_owner }}/nuttx
           ref: ${{ github.head_ref }}
           path: nuttx
           fetch-depth: 0
