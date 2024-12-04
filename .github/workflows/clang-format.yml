@@ -33,17 +33,21 @@ jobs:
       with:
           fetch-depth: 0
       
-    - name: Get list of changed files in PR
-      id: changed-files
+    - name: Get changed files in the PR
+      id: files
       run: |
-        echo "changed_files<<EOF" >> $GITHUB_OUTPUT
-        git diff --name-only HEAD^ HEAD -- '*.cpp' '*.h' '*.hpp' '*.c' | tr '\n' ',' >> $GITHUB_OUTPUT  # Adjust file extensions as needed
-        echo "EOF" >> $GITHUB_OUTPUT
+        # Get a list of changed files in the PR
+        files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+
+        echo "Modified files:"
+        echo "$files"
+
+        # Save changed files to a variable for later steps
+        echo "::set-output name=changed-files::$files"
 
     - name: Run clang-format check
       run: |
-        IFS=',' read -ra FILES <<< $(echo ${{ steps.changed-files.outputs.changed_files }})
-        for file in "${FILES[@]}"; do
+        for file in ${{ steps.files.outputs.changed-files }}
           if [ -n "$file" ]; then
             if [ -f ".clang-format" ]; then
                 clang-format -n $file --Werror
