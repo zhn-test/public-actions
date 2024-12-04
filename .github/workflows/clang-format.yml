@@ -6,6 +6,11 @@ name: clang-format
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+    paths:
+      - '**/*.cpp'   # 只针对 .cpp 文件
+      - '**/*.h'     # 只针对 .h 文件
+      - '**/*.c'   # 只针对 .c 文件
+      - '**/*.hpp'   # 只针对 .hpp 文件
 
   # reusable
   workflow_call:
@@ -29,15 +34,12 @@ jobs:
 
     - name: Checkout Repo
       uses: actions/checkout@v4
-      id: checkout
-      with:
-          fetch-depth: 0
       
     - name: Get changed files in the PR
       id: files
       run: |
         # Get a list of changed files in the PR
-        files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+        files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }}  -- '*.cpp' '*.h' '*.c' '*.hpp')
 
         echo "Modified files:"
         echo "$files"
