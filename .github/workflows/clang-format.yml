@@ -38,8 +38,10 @@ jobs:
     - name: Get changed files in the PR
       id: files
       run: |
+        git log
+        ls -atl
         # Get a list of changed files in the PR
-        files=$(git diff --name-only HEAD^ ${{ github.sha }}  -- '*.cpp' '*.h' '*.c' '*.hpp')
+        files=$(git diff --name-only {{ github.event.pull_request.base.sha }} ${{ github.sha }}  -- '*.cpp' '*.h' '*.c' '*.hpp')
 
         echo "Modified files:"
         echo "$files"
