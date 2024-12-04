@@ -54,8 +54,9 @@ jobs:
     - name: Run clang-format check
       run: |
         for file in ${{ steps.files.outputs.changed-files }}
-          if test -f "$file" ; then
-            if test -f ".clang-format" ; then
+        do
+          if [ -f "$file" ]; then
+            if [ -f ".clang-format" ]; then
                 clang-format -n $file --Werror
             else
                 clang-format --style=WebKit -n $file --Werror
