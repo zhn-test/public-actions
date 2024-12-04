@@ -57,8 +57,10 @@ jobs:
         do
           if [ -f "$file" ]; then
             if [ -f ".clang-format" ]; then
+                echo clang-format -n $file --Werror
                 clang-format -n $file --Werror
             else
+                echo clang-format --style=WebKit -n $file --Werror
                 clang-format --style=WebKit -n $file --Werror
             fi
           fi
