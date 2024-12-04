@@ -24,7 +24,7 @@ concurrency:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  checkpatch:
+  clang-format:
     runs-on: ubuntu-latest
     steps:
     - name: Update and install clang-format
@@ -39,7 +39,7 @@ jobs:
       id: files
       run: |
         # Get a list of changed files in the PR
-        files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }}  -- '*.cpp' '*.h' '*.c' '*.hpp')
+        files=$(git diff --name-only HEAD^ ${{ github.sha }}  -- '*.cpp' '*.h' '*.c' '*.hpp')
 
         echo "Modified files:"
         echo "$files"
