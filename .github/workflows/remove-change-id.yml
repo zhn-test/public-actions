@@ -1,0 +1,48 @@
+name: Remove Change-ID from Commit Messages
+
+on:
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  remove-change-id:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Step 2: Configure git user for amendments
+      - name: Configure git user
+        run: |
+          git config --global user.name "openvela-robot"
+          git config --global user.email "openvela-robot@xiaomi.com"
+
+      # Step 3: Remove Change-ID from all commit messages
+      - name: Remove Change-ID
+        run: |
+          # Get all commits in the PR
+          PR_COMMITS=$(git log --reverse --pretty=format:%H origin/${{ github.event.pull_request.base.ref }}..HEAD)
+          
+          for COMMIT in $PR_COMMITS; do
+            echo "Processing commit $COMMIT"
+            # Get the commit message
+            COMMIT_MSG=$(git log --format=%B -n 1 $COMMIT)
+
+            # Remove Change-ID lines
+            CLEANED_MSG=$(echo "$COMMIT_MSG" | sed '/^Change-ID:/d')
+
+            # Rewrite the commit with updated message
+            GIT_SEQUENCE_EDITOR="sed -i '' -e 's/^pick /reword /'" \
+              git rebase --interactive $COMMIT^
+
+            echo "$CLEANED_MSG" | git commit --amend -m "$CLEANED_MSG" --no-edit
+          done
+
+          # Push the updated commits back to the PR branch
+          git push origin HEAD --force
+
