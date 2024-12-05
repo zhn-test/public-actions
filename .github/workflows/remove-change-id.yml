@@ -5,6 +5,9 @@ on:
     branches:
       - '**'
 
+  # reusable
+  workflow_call:
+
 jobs:
   remove-change-id:
     runs-on: ubuntu-latest
