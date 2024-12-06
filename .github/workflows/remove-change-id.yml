@@ -37,6 +37,7 @@ jobs:
             COMMIT_MSG=$(git log --format=%B -n 1 $COMMIT)
             echo $COMMIT_MSG | grep -E 'Change-Id: [A-Za-z0-9]{41,}' || true
             RETURN_CODE=$?
+            echo $RETURN_CODE
             if [ $RETURN_CODE -ne 0 ]; then
               continue
             fi
