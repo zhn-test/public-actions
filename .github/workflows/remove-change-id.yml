@@ -47,6 +47,7 @@ jobs:
 
             # Remove Change-ID lines
             CLEANED_MSG=$(echo "$COMMIT_MSG" | sed '/^Change-Id: [A-Za-z0-9]{41,}/d')
+            echo "CLEANED_MSG:$CLEANED_MSG"
 
             # Rewrite the commit with updated message
             GIT_SEQUENCE_EDITOR="sed -i '' -e 's/^pick /reword /'" \
