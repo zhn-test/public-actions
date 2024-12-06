@@ -46,14 +46,13 @@ jobs:
             fi
 
             # Remove Change-ID lines
-            CLEANED_MSG=$(echo "$COMMIT_MSG" | sed '/^Change-Id: [A-Za-z0-9]{41,}/d')
+            CLEANED_MSG=$(echo "$COMMIT_MSG" | dos2unix | sed '/^Change-Id: [A-Za-z0-9]{41,}/d')
             echo "CLEANED_MSG:$CLEANED_MSG"
 
             # Rewrite the commit with updated message
-            GIT_SEQUENCE_EDITOR="sed -i '' -e 's/^pick /reword /'" \
-              git rebase --interactive $COMMIT^
-
-            echo "$CLEANED_MSG" | git commit --amend -m "$CLEANED_MSG" --no-edit
+            git rebase --interactive --autosquash $COMMIT^
+            git commit --amend --no-edit -m "$CLEANED_MSG"
+            # git push --force-with-lease
           done
 
           # Push the updated commits back to the PR branch
