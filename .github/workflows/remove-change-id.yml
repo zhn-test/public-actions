@@ -44,6 +44,7 @@ jobs:
               continue
             fi
 
+            set -x
             # Remove Change-ID lines
             CLEANED_MSG=$(sed '/^Change-Id: /d' <<< "$COMMIT_MSG")
             echo "CLEANED_MSG:$CLEANED_MSG"
