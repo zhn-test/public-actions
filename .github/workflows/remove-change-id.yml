@@ -25,10 +25,10 @@ jobs:
           git config --global user.name "openvela-robot"
           git config --global user.email "openvela-robot@xiaomi.com"
 
-    - name: Update and install dos2unix
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y dos2unix
+      - name: Update and install dos2unix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dos2unix
 
       # Step 3: Remove Change-ID from all commit messages
       - name: Remove Change-ID
