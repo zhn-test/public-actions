@@ -50,7 +50,7 @@ jobs:
             echo "CLEANED_MSG:$CLEANED_MSG"
 
             # Rewrite the commit with updated message
-            git rebase --interactive --autosquash $COMMIT^
+            #git rebase --interactive --autosquash $COMMIT^
             git commit --amend --no-edit -m "$CLEANED_MSG"
             # git push --force-with-lease
           done
