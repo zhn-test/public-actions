@@ -25,11 +25,6 @@ jobs:
           git config --global user.name "openvela-robot"
           git config --global user.email "openvela-robot@xiaomi.com"
 
-      - name: Update and install dos2unix
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y dos2unix
-
       # Step 3: Remove Change-ID from all commit messages
       - name: Remove Change-ID
         run: |
@@ -50,7 +45,7 @@ jobs:
             fi
 
             # Remove Change-ID lines
-            CLEANED_MSG=$(echo "$COMMIT_MSG" | dos2unix | sed '/^Change-Id: [A-Za-z0-9]{41,}/d')
+            CLEANED_MSG=$(sed '/^Change-Id: /d' <<< "$COMMIT_MSG")
             echo "CLEANED_MSG:$CLEANED_MSG"
 
             # Rewrite the commit with updated message
