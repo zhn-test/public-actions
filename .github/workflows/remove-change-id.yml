@@ -33,7 +33,7 @@ jobs:
       # Step 3: Remove Change-ID from all commit messages
       - name: Remove Change-ID
         run: |
-        shell: /bin/bash
+          #!/bin/bash
           # Get all commits in the PR
           PR_COMMITS=$(git log --reverse --pretty=format:%H origin/${{ github.event.pull_request.base.ref }}..HEAD)
           
