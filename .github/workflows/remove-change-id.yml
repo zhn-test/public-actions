@@ -24,8 +24,8 @@ jobs:
       # Step 2: Configure git user for amendments
       - name: Configure git user
         run: |
-          git config --global user.name "openvela-robot"
-          git config --global user.email "openvela-robot@xiaomi.com"
+          git config --global user.name "zhangning21"
+          git config --global user.email "zhangning21@xiaomi.com"
 
       # Step 3: Remove Change-ID from all commit messages
       - name: Remove Change-ID
@@ -59,6 +59,7 @@ jobs:
 
           set -x
           # Push the updated commits back to the PR branch
+          git config --list
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
           git push origin HEAD --force
 
