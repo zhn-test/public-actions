@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 0
       
     - name: Checkout Nuttx Repo
-      if: ${{ github.repository != '${{ github.repository_owner }}/nuttx' }}
+      if: ${{ github.repository != '${{ github.repository_owner }}/nuttx' && github.repository == '${{ github.repository_owner }}/apps' }}
       uses: actions/checkout@v4
       with:
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -46,11 +46,11 @@ jobs:
 
     - name: Check PR
       run: |
-        echo "::add-matcher::nuttx/.github/nxstyle.json"
         cd ${{ env.REPO_NAME }}
         commits="${{ github.event.pull_request.base.sha }}..HEAD"
         git log --oneline $commits
         if [ ${{ env.REPO_NAME }} == "apps" ] || [ ${{ env.REPO_NAME }} == "nuttx" ]; then
+          echo "::add-matcher::nuttx/.github/nxstyle.json"
           python -m venv .venv
           source .venv/bin/activate
           pip install cmake-format
