@@ -57,6 +57,12 @@ jobs:
           echo "../nuttx/tools/checkpatch.sh -u -m -g $commits"
           bash -x ../nuttx/tools/checkpatch.sh -u -m -g $commits
         else
-          echo ".github/actions/scripts/checkpatch.sh -m -g $commits"
-          bash -x .github/actions/scripts/checkpatch.sh -m -g $commits
+          set -x
+          msg=`git show -s --format=%B $commits`
+          while read; do
+            if [[ $REPLY =~ ^Change-Id ]]; then
+              echo "Remove Gerrit Change-ID's before submitting upstream"
+              exit 1
+            fi
+          done <<< "$msg"
         fi
