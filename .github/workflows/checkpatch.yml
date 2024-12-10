@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 0
       
     - name: Checkout Nuttx Repo
-      if: ${{ github.repository != '${{ github.repository_owner }}/nuttx' && github.repository == '${{ github.repository_owner }}/apps' }}
+      if: ${{ github.repository == '${{ github.repository_owner }}/apps' }}
       uses: actions/checkout@v4
       with:
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
