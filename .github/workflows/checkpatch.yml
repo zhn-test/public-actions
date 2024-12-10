@@ -47,11 +47,16 @@ jobs:
     - name: Check PR
       run: |
         echo "::add-matcher::nuttx/.github/nxstyle.json"
-        python -m venv .venv
-        source .venv/bin/activate
-        pip install cmake-format
         cd ${{ env.REPO_NAME }}
         commits="${{ github.event.pull_request.base.sha }}..HEAD"
         git log --oneline $commits
-        echo "../nuttx/tools/checkpatch.sh -u -m -g $commits"
-        bash -x ../nuttx/tools/checkpatch.sh -u -m -g $commits
+        if [ ${{ env.REPO_NAME }} == "apps" ] || [ ${{ env.REPO_NAME }} == "nuttx" ]; then
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install cmake-format
+          echo "../nuttx/tools/checkpatch.sh -u -m -g $commits"
+          bash -x ../nuttx/tools/checkpatch.sh -u -m -g $commits
+        else
+          echo ".github/actions/scripts/checkpatch.sh -m -g $commits"
+          bash -x .github/actions/scripts/checkpatch.sh -m -g $commits
+        fi
