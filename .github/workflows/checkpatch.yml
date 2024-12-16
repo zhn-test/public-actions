@@ -4,10 +4,10 @@ name: checkpatch
 
 # Controls when the workflow will run
 on:
-  #pull_request:
-  #  types: [opened, reopened, synchronize]
-  pull_request_target:
-    types: [opened, synchronize]
+  pull_request:
+    types: [opened, reopened, synchronize]
+  #pull_request_target:
+  #  types: [opened, synchronize]
 
   # reusable
   workflow_call:
