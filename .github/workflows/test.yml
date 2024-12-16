@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: test-actions
+name: CI
 
 # Controls when the workflow will run
 on:
@@ -10,32 +10,15 @@ on:
   # reusable
   workflow_call:
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  sync-repos:
+  CI:
     runs-on: ubuntu-latest
-    steps:
-    - name: 检出代码
-      uses: actions/checkout@v4
-      with:
-          ref: ${{ github.head_ref }}
-      
-    #- name: 设置环境变量
-    #  run: |
-    #    echo "REPO_PATH=你的repo配置文件的路径" >> $GITHUB_ENV
-    
+    steps:   
     - name: Set up Python 3.8
       uses: actions/setup-python@v5
       with:
         python-version: 3.8
-
-    - name: Update and install git
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y git
 
     - name: Download and install repo
       run: |
@@ -43,6 +26,25 @@ jobs:
         echo 'export PATH=~/bin:$PATH' >> $HOME/.bashrc
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
+    
+    - name: Clean up disk space
+      run: |
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/local/lib/android /etc/mysql /etc/php /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        sudo docker builder prune -a
+        sudo docker system prune -af
+        sudo -E apt-get -y purge azure-cli* docker* ghc* zulu* hhvm* llvm* firefox* google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* mongodb* moby* snap* || true
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install libfuse-dev $(curl -fsSL git.io/depends-ubuntu-2204)
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        df -h
 
     - name: Verify repo installation
       run: |
@@ -64,39 +66,41 @@ jobs:
         chmod 600 ~/.ssh/id_rsa                                                                                                                                                                                            
         ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-    - name: repo init
+    - name: Get PR source branch name
+      id: get_branch_name
       run: |
-        ~/bin/repo init -u git@github.com:zhn-test/manifest.git -b main
-        echo "REPO_INIT=true" >> $GITHUB_ENV
-
-    - name: repo sync
-      run: |
-        ~/bin/repo sync -c -d --no-tags -j12
-
+        PR_BRANCH=$(jq -r '.pull_request.head.ref' "$GITHUB_EVENT_PATH")
+        echo "branch_name=$PR_BRANCH" >> $GITHUB_OUTPUT
+  
     - name: Fetch PR
-      if: ${{ github.event_name == 'pull_request' }}
+      if: ${{ github.event_name == 'pull_request_review' }}
       run: |
         current_path=$(pwd)
-        echo $current_path
+        echo "REPO_ROOT=$current_path" >> $GITHUB_ENV
         echo $(ls -atl)
-        manifest_content=$(cat .repo/manifests/default.xml)
+        manifest_content=$(cat .repo/manifests/openvela.xml)
         echo $manifest_content
-        echo "+++++++++++++++"
-        REPO_PATH=$(cat .repo/manifests/default.xml | grep "\"${{ github.event.pull_request.head.repo.name }}\"" | awk -F'"' '{print $2}')
+        REPO_PATH=$(cat .repo/manifests/openvela.xml | grep "\"${{ github.event.pull_request.head.repo.name }}\"" | awk -F'"' '{print $2}')
         echo $REPO_PATH
-        echo "-------------"
         cd $REPO_PATH
-        echo "++++++++++++++++"
-        current_path1=$(pwd)
-        echo $current_path1
-        echo $(ls -atl)
-        echo "in in in in in"
         git fetch openvela pull/${{ github.event.pull_request.number }}/head:pr-branch
         git checkout pr-branch
-        echo $(cat test)
         cd -
 
-    - name: Run CI
+    - name: Docker Login                                                                                                                                                                                                 
+      uses: docker/login-action@v3                                                                                                                                                                                       
+      with:                                                                                                                                                                                                              
+        registry: ghcr.io                                                                                                                                                                                                
+        username: ${{ secrets.DOCKER_USER }}                                                                                                                                                                                    
+        password: ${{ secrets.DOCKER_TOKEN }}                                                                                                                                                                            
+                                                                                                                                                                                                                         
+    - name: Docker Pull                                                                                                                                                                                                  
+      run: docker pull ghcr.io/open-vela/openvela-ci-linux                                                                                                                                                                                                                                                                                            
+
+    - name: Run CI tasks using script inside Docker container
       run: |
-        # 这里添加你的编译或测试命令
-        echo "Running CI for all checked out PRs..."
+        docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace \
+          ghcr.io/open-vela/openvela-ci-linux:latest \
+          /bin/bash -c "ls -atl && ./build.sh vendor/openvela/boards/vela/configs/goldfish-armeabi-v7a-ap -e -Werror -j12"                                                                                                                                                                                                                     
