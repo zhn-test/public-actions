@@ -18,7 +18,6 @@ jobs:
     - name: Get Repo Name
       run: |
           echo "REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
-          echo "ORG_NAME=${github.repository##*/}" >> $GITHUB_ENV
 
     - name: Set up Python 3.8
       uses: actions/setup-python@v5
@@ -44,7 +43,7 @@ jobs:
   
     - name: Repo Init
       run: |
-        ~/bin/repo init -u https://github.com/${{ env.ORG_NAME }}/manifests -b ${{ steps.get_branch_name.outputs.branch_name }} -m openvela.xml --depth=1 --git-lfs
+        ~/bin/repo init -u https://github.com/zhn-test/manifests -b ${{ steps.get_branch_name.outputs.branch_name }} -m openvela.xml --depth=1 --git-lfs
         echo "REPO_INIT=true" >> $GITHUB_ENV
 
     - name: Repo Sync
