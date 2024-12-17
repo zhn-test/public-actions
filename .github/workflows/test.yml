@@ -18,7 +18,7 @@ jobs:
     - name: Get Repo Name
       run: |
           echo "REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
-          echo "ORG_NAME=${${{ github.repository }}##*/}" >> $GITHUB_ENV
+          echo "ORG_NAME=${github.repository##*/}" >> $GITHUB_ENV
 
     - name: Set up Python 3.8
       uses: actions/setup-python@v5
