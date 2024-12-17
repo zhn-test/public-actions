@@ -43,7 +43,7 @@ jobs:
   
     - name: Repo Init
       run: |
-        ~/bin/repo init -u https://github.com/zhn-test/manifests -b ${{ steps.get_branch_name.outputs.branch_name }} -m openvela.xml --depth=1 --git-lfs
+        ~/bin/repo init -u https://github.com/openvela/manifests -b ${{ steps.get_branch_name.outputs.branch_name }} -m openvela.xml --depth=1 --git-lfs
         echo "REPO_INIT=true" >> $GITHUB_ENV
 
     - name: Repo Sync
