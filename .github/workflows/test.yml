@@ -53,7 +53,7 @@ jobs:
         #    df -h
 
     - name: Fetch PR
-      if: ${{ github.event_name == 'pull_request_review' }}
+      #if: ${{ github.event_name == 'pull_request_review' }}
       run: |
         echo $(ls -atl)
         if [ ${{ env.REPO_NAME }} == "manifests" ]; then
