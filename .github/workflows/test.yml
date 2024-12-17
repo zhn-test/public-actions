@@ -46,11 +46,11 @@ jobs:
         ~/bin/repo init -u https://github.com/open-vela/manifests -b dev -m openvela.xml --depth=1 --git-lfs
         echo "REPO_INIT=true" >> $GITHUB_ENV
 
-    - name: Repo Sync
-      run: |
-        df -h
-        ~/bin/repo sync -c -d --no-tags -j12
-        df -h
+        #- name: Repo Sync
+        #  run: |
+        #    df -h
+        #    ~/bin/repo sync -c -d --no-tags -j12
+        #    df -h
 
     - name: Fetch PR
       if: ${{ github.event_name == 'pull_request_review' }}
