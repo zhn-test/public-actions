@@ -58,7 +58,7 @@ jobs:
         echo $(ls -atl)
         if [ ${{ env.REPO_NAME }} == "manifests" ]; then
             cd .repo/manifests
-            git fetch openvela pull/${{ github.event.pull_request.number }}/head:pr-branch
+            git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-branch
             git checkout pr-branch
             cd -
             ~/bin/repo sync -c -d --no-tags -j12
