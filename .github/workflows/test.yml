@@ -55,6 +55,7 @@ jobs:
     - name: Fetch PR
       #if: ${{ github.event_name == 'pull_request_review' }}
       run: |
+        set -x
         echo $(ls -atl)
         if [ ${{ env.REPO_NAME }} == "manifests" ]; then
             cd .repo/manifests
