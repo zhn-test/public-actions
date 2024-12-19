@@ -4,8 +4,10 @@ name: CI
 
 # Controls when the workflow will run
 on:
-  pull_request_review:
-    types: [submitted]
+    #pull_request_review:
+    #types: [submitted]
+  pull_request:
+    types: [opened, reopend, closed]
 
   # reusable
   workflow_call:
@@ -24,6 +26,16 @@ jobs:
       with:
         python-version: 3.8
 
+        #- name: Set up GitHub CLI
+        #    uses: actions/setup-node@v3
+        #    with:
+        #      node-version: '16'
+
+        #- name: Install GitHub CLI
+        #    run: |
+        #      sudo apt-get update
+        #      sudo apt-get install -y gh
+
     - name: Download and install repo
       run: |
         mkdir ~/bin
@@ -35,12 +47,12 @@ jobs:
       run: |
         ~/bin/repo --version
 
-    - name: Get PR source branch name
-      id: get_branch_name
-      run: |
-        PR_BRANCH=$(jq -r '.pull_request.head.ref' "$GITHUB_EVENT_PATH")
-        echo "branch_name=$PR_BRANCH" >> $GITHUB_OUTPUT
-  
+        #- name: Get PR source branch name
+        #  id: get_branch_name
+        #  run: |
+        #    PR_BRANCH=$(jq -r '.pull_request.head.ref' "$GITHUB_EVENT_PATH")
+        #    echo "branch_name=$PR_BRANCH" >> $GITHUB_OUTPUT
+
     - name: Repo Init
       run: |
         ~/bin/repo init -u https://github.com/open-vela/manifests -b dev -m openvela.xml --depth=1 --git-lfs
@@ -52,6 +64,37 @@ jobs:
         #    ~/bin/repo sync -c -d --no-tags -j12
         #    df -h
 
+    - name: Parse PR Description for Dependencies
+        id: parse-dependencies
+        run: |
+          set -x
+          # 获取当前 PR 的描述
+          #PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body -q .body)
+          DEPENDS_ON=$(echo "${{ github.event.pull_request.body }}" | grep -oP 'depends-on:\s*([\w/-]+#\d+)' | sed 's/depends-on:\s*//g')
+          echo "PR Body: $DEPENDS_ON"
+          CURRENT_PR=${{ github.repository }}#${{ github.event.pull_request.number }}
+          ALL_PRS="${{ CURRENT_PR }} ${{ DEPENDENT_PRS }}"
+
+          for DEPENDENCY in ${{ ALL_PRS }}; do
+            REPO_NAME=$(echo $DEPENDENCY | cut -d '#' -f 1)
+            PR_NUMBER=$(echo $DEPENDENCY | cut -d '#' -f 2)
+            # Check if the PR is merged
+            PR_STATUS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER" | jq -r .state)
+            curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                -d '{"state": "success", "context": "CI", "description": "CI check passed"}' \
+                "https://api.github.com/repos/$REPO_NAME/pulls/${{ PR_NUMBER }}/statuses"
+          done
+
+          # 查找描述中是否有 'Depends-on' 字段
+          #DEPENDS_ON=$(echo "$PR_BODY" | grep -oP 'Depends-on: \K\S+')
+          #if [ -z "$DEPENDS_ON" ]; then
+          #  echo "No dependencies found."
+          #  echo "depends_on=" >> $GITHUB_ENV
+          #else
+          #  echo "Dependencies found: $DEPENDS_ON"
+          #  echo "depends_on=$DEPENDS_ON" >> $GITHUB_ENV
+          #fi
+  
     - name: Fetch PR
       #if: ${{ github.event_name == 'pull_request_review' }}
       run: |
