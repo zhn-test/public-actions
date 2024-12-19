@@ -76,11 +76,17 @@ jobs:
         for DEPENDENCY in $DEPENDS_ON; do
           REPO_NAME=$(echo $DEPENDENCY | cut -d '#' -f 1)
           PR_NUMBER=$(echo $DEPENDENCY | cut -d '#' -f 2)
+          PR_COMMITS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER/commits")
+          LATEST_SHA=$(echo "$PR_COMMITS" | jq -r '.[-1].sha')
+          if [[ -z "$LATEST_SHA" ]]; then
+            echo "No commits found for PR #$PR_NUMBER or invalid API response."
+            exit 1
+          fi
           # Check if the PR is merged
           PR_STATUS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER" | jq -r .state)
           curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               -d '{"state": "success", "context": "CI", "description": "CI check passed"}' \
-              "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER/statuses"
+              "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER/statuses/$LATEST_SHA"
         done
     
         # 查找描述中是否有 'Depends-on' 字段
