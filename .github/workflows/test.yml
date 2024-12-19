@@ -70,7 +70,7 @@ jobs:
         set -x
         # 获取当前 PR 的描述
         #PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body -q .body)
-        DEPENDS_ON=$(echo "${{ github.event.pull_request.body }}" | grep -oP 'depends-on:\s*([\w/-]+#\d+)' | sed 's/depends-on:\s*//g')
+        DEPENDS_ON=$(echo "${{ github.event.pull_request.body }}" | grep -oP 'depends-on:\K(.*)' | sed 's/^ *//;s/ *$//')
         echo "PR Body: $DEPENDS_ON"
     
         for DEPENDENCY in $DEPENDS_ON; do
