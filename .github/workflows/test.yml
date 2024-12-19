@@ -72,7 +72,7 @@ jobs:
           #PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body -q .body)
           DEPENDS_ON=$(echo "${{ github.event.pull_request.body }}" | grep -oP 'depends-on:\s*([\w/-]+#\d+)' | sed 's/depends-on:\s*//g')
           echo "PR Body: $DEPENDS_ON"
-          CURRENT_PR=${{ github.repository }}#${{ github.event.pull_request.number }}
+          CURRENT_PR="${{ github.repository }}#${{ github.event.pull_request.number }}"
           ALL_PRS="${{ CURRENT_PR }} ${{ DEPENDENT_PRS }}"
     
           for DEPENDENCY in ${{ ALL_PRS }}; do
