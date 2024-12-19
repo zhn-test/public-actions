@@ -73,7 +73,7 @@ jobs:
         DEPENDS_ON=$(echo "${{ github.event.pull_request.body }}" | grep -oP 'depends-on:\s*([\w/-]+#\d+)' | sed 's/depends-on:\s*//g')
         echo "PR Body: $DEPENDS_ON"
     
-        for DEPENDENCY in ${{ DEPENDS_ON }}; do
+        for DEPENDENCY in $DEPENDS_ON; do
           REPO_NAME=$(echo $DEPENDENCY | cut -d '#' -f 1)
           PR_NUMBER=$(echo $DEPENDENCY | cut -d '#' -f 2)
           # Check if the PR is merged
