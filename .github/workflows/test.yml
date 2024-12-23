@@ -82,11 +82,25 @@ jobs:
             echo "No commits found for PR #$PR_NUMBER or invalid API response."
             exit 1
           fi
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/$REPO_NAME/check-runs \
+            -d '{
+              "name": "Custom Check",
+              "head_sha": "'$LATEST_SHA'",
+              "status": "completed",
+              "conclusion": "success", # 或者 failure
+              "output": {
+                "title": "PR Check",
+                "summary": "This is a custom check result for PR #'$PR_NUMBER'."
+              }
+            }'
           # Check if the PR is merged
-          PR_STATUS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER" | jq -r .state)
-          curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -d '{"state": "success", "context": "CI", "description": "CI check passed"}' \
-              "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER/statuses/$LATEST_SHA"
+          #PR_STATUS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER" | jq -r .state)
+          #curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          #    -d '{"state": "success", "context": "CI", "description": "CI check passed"}' \
+          #    "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER/statuses/$LATEST_SHA"
         done
     
         # 查找描述中是否有 'Depends-on' 字段
