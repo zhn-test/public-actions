@@ -25,9 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Skip duplicate actions if commit is already processed
-      uses: peter-evans/skip-duplicate-actions@v1
+      uses: fkirc/skip-duplicate-actions@v5
       with:
-        commit: ${{ github.sha }} 
+        #commit: ${{ github.sha }} 
+        concurrent_skipping: 'same_content'
 
     - name: Get Repo Name
       run: |
