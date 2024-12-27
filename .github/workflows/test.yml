@@ -118,7 +118,7 @@ jobs:
         #fi
   
     - name: Fetch PR
-      #if: ${{ github.event_name == 'pull_request_review' }}
+      if: ${{ github.event_name == 'pull_request_reviewa' }}
       run: |
         set -x
         echo $(ls -atl)
