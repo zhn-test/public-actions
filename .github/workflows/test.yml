@@ -80,7 +80,7 @@ jobs:
         for DEPENDENCY in $DEPENDS_ON; do
           REPO_NAME=$(echo $DEPENDENCY | cut -d '#' -f 1)
           PR_NUMBER=$(echo $DEPENDENCY | cut -d '#' -f 2)
-          PR_COMMITS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER")
+          PR_COMMITS=$(curl -s -H "Authorization: token ${{ secrets.PAT_TOKEN }}" "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER")
           LATEST_SHA=$(echo "$PR_COMMITS" | jq -r '.head.sha')
           if [[ -z "$LATEST_SHA" ]]; then
             echo "No commits found for PR #$PR_NUMBER or invalid API response."
