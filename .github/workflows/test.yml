@@ -75,7 +75,7 @@ jobs:
         GITHUB_SERVER_URL: ${{ github.server_url }}
       run: |
         echo "Current Action URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-        echo "CURRENT_ACTION_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_OUTPUT
+        echo "CURRENT_ACTION_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
 
     - name: Parse PR Description for Dependencies
       id: parse-dependencies
