@@ -78,9 +78,16 @@ jobs:
       run: |
         set -x
         # 获取当前 PR 的描述
-        #PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body -q .body)
         DEPENDS_ON=$(echo "${{ github.event.pull_request.body }}" | grep -oP 'depends-on:\K(.*)' | sed 's/^ *//;s/ *$//')
-        echo "PR Body: $DEPENDS_ON"
+        echo "PR DEPENDS_ON: $DEPENDS_ON"
+        ALL_PR="$DEPENDS_ON ${{ github.repository }}:${{ github.event.pull_request.number }}"
+        manifest_part=$(echo "$ALL_PR" | grep -o 'zhn-test/manifests[^ ]*') || true
+        if [ "$manifest_part"X != ""X ]; then
+          without_manifest_pr=$(echo "$ALL_PR" | sed "s|$manifest_part||" | xargs)
+          ALL_PR="$manifest_part $without_manifest_pr"
+        fi
+        echo "ALL_PR=$ALL_PR" >> $GITHUB_ENV
+        echo "DEPENDS_ON=$DEPENDS_ON" >> $GITHUB_ENV
     
         for DEPENDENCY in $DEPENDS_ON; do
           REPO_NAME=$(echo $DEPENDENCY | cut -d '#' -f 1)
