@@ -19,9 +19,6 @@ name: Docker-Linux_From_Apache
 
 on:
   push:
-    # Publish `trunk` as Docker `latest` image.
-    branches:
-      - trunk
     paths:
       - '.github/workflows/docker_linux_from_apache.yml'
       - '.github/workflows/docker_linux/Dockerfile_from_apache'
