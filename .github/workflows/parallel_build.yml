@@ -199,7 +199,6 @@ jobs:
       continue-on-error: true
 
     - name: check cherry-pick pr result
-      needs: Fetch PR
       run: |
         if [ -n "${{ env.REPO_SYNC_CODE }}" ] && [ ${{ env.REPO_SYNC_CODE }} != 0 ]; then
           echo "repo sync after cherry-pick manifest PR failed."
