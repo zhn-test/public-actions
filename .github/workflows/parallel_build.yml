@@ -233,7 +233,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: source
-        path: sources.tar.gz
+        path: ./
 
   # 并行执行的CI任务矩阵
   ci-tasks:
@@ -258,7 +258,7 @@ jobs:
           path: .
 
       - name: Extract sources
-        run: tar zxf sources.tar.gz
+        run: ls -atl .
 
       - name: Docker Login
         uses: docker/login-action@v3
