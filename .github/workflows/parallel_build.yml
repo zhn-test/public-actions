@@ -355,7 +355,7 @@ jobs:
 
   # 后置处理作业，用于更新依赖PR状态
   post-processing:
-    needs: autotest
+    needs: ci-tasks
     runs-on: ubuntu-latest
     steps:
       - name: Post Processing
