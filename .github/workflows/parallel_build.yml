@@ -227,7 +227,7 @@ jobs:
         fi
 
     - name: Tar sources
-      run: tar zcf sources.tar.gz /workspace
+      run: pwd && ls -atl && tar zcf sources.tar.gz .
 
     - name: Archive Source Bundle
       uses: actions/upload-artifact@v4
