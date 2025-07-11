@@ -295,23 +295,18 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-            /bin/bash -c "pwd && ls -atl && touch ${{ matrix.task }}"
+            /bin/bash -c "pwd && ls -atl && df -h && ls -atl && ./build.sh vendor/openvela/boards/vela/configs/${{ matrix.task }} -e -Werror -j8 "
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.task }}_${{ env.REPO_NAME }}-${{ github.event.pull_request.number }}
-          path: nuttx/nuttx
+          path: nuttx/nuttx nuttx/vela_*.bin nuttx/.config
 
       - name: Run autotest tasks inside Docker container
         if: endsWith(matrix.task, '-citest')
         run: |
-          echo 'export PATH=~/bin:$PATH' >> $HOME/.bashrc
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-          chmod a+x ~/bin/repo
-          sudo ~/bin/repo forall -v -c git clean -dfx; git reset --hard HEAD
-          cp -r package_back/* nuttx/ || true
-          ls -atl package_back/
+          rm -rf prebuilts apps external
           STANDARD_CONFIG="${matrix.task%-citest*}"
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
