@@ -227,14 +227,14 @@ jobs:
           fi
         fi
 
-    #- name: Tar sources
-    #  run: pwd && ls -atl && tar zcf sources.tar.gz .
+    - name: Tar sources
+      run: pwd && ls -atl && cd .. && mv public-actions openvela && flock -x /tmp/lockfile tar -czf sources.tar.gz openvela
 
     - name: Archive Source Bundle
       uses: actions/upload-artifact@v4
       with:
         name: source
-        path: ./
+        path: sources.tar.gz
 
   # 并行执行的CI任务矩阵
   ci-tasks:
@@ -277,7 +277,7 @@ jobs:
           df -h
 
       - name: Extract sources
-        run: ls -atl . && df -h
+        run: tar zxf sources.tar.gz
 
       - name: Docker Login
         uses: docker/login-action@v3
@@ -293,7 +293,7 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
+            -w /workspace/openvela \
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
             /bin/bash -c "pwd && ls -atl && df -h && ls -atl && ./build.sh vendor/openvela/boards/vela/configs/${{ matrix.task }} -e -Werror -j8 "
 
@@ -310,7 +310,7 @@ jobs:
           STANDARD_CONFIG="${matrix.task%-citest*}"
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
+            -w /workspace/openvela \
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
             /bin/bash -c "free -m && df -h && cp package_back/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m 'common or ${{ matrix.task }}' ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json"
             /bin/bash -c "ls -atl"
@@ -319,7 +319,7 @@ jobs:
         if: endsWith(matrix.task, '-citest')
         id: autotest_result
         run: |
-          cd ${{ github.workspace }}
+          cd ${{ github.workspace }}/openvela
           mkdir output
           cp nuttx/nuttx ./*.log ./autotest.json output
           failed=$(cat autotest.json | jq '.report.summary.failed')
