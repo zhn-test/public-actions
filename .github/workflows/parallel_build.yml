@@ -158,12 +158,12 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        task: [
-          "goldfish-armeabi-v7a-ap",
-          "goldfish-x86_64-ap",
-          "stm32h750b-dk:lvgl",
-          "goldfish-armeabi-v7a-ap-citest"
-        ]
+        group: [group1, group2]  # 定义两个组
+        include:
+          - group: group1
+            tasks: [goldfish-arm64-v8a-ap, goldfish-armeabi-v7a-ap, goldfish-x86_64-ap, stm32h750b-dk:lvgl]  # 第一组任务
+          - group: group2
+            tasks: [goldfish-armeabi-v7a-ap-citest]  # 第二组任务
       fail-fast: false
     steps:
       - name: Download Snapshot and PR Info
@@ -323,11 +323,17 @@ jobs:
 
       - name: Run CI tasks inside Docker container
         run: |
+          if [[ "${{ matrix.task }}" == *:* ]]; then
+            build_cmd="./build.sh ${{ matrix.task }} -e -Werror -j8"
+          else
+            build_cmd="./build.sh vendor/openvela/boards/vela/configs/${{ matrix.task }} -e -Werror -j8"
+          fi
+          echo $build_cmd
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-            /bin/bash -c "pwd && touch ${{ matrix.task }} && df -h && ls -atl && ./build.sh vendor/openvela/boards/vela/configs/${{ matrix.task }} -e -Werror -j8 "
+            /bin/bash -c "pwd && touch ${{ matrix.task }} && df -h && ls -atl && $build_cmd"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -338,10 +344,22 @@ jobs:
             nuttx/vela_*.bin
             nuttx/.config
 
+      - name: Clean
+        if: endsWith(matrix.task, '-citest')
+        run: |
+          echo 'export PATH=~/bin:$PATH' >> $HOME/.bashrc
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          mkdir package_back
+          cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config package_back
+          sudo ~/bin/repo forall -v -c 'git clean -dfx; git reset --hard HEAD'
+          rm -rf .repo
+          rm -rf prebuilts/clang apps
+        continue-on-error: true
+
       - name: Run autotest tasks inside Docker container
         if: endsWith(matrix.task, '-citest')
         run: |
-          rm -rf prebuilts apps external
           STANDARD_CONFIG="${matrix.task%-citest*}"
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
