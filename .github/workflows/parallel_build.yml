@@ -12,8 +12,11 @@ jobs:
   # 前置准备作业，负责环境设置和依赖准备
   setup:
     runs-on: ubuntu-latest
+    outputs:
+      SNAPSHOT: ${{ steps.set-env.outputs.SNAPSHOT }}
     steps:
-    - name: Get Repo Name
+    - name: Set ENV
+      id: set-env
       run: |
           echo "TRIGGER_REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
           echo "PR_INFO_FILE=pr_info_$(basename ${{ github.repository }})_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
