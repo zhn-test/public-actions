@@ -16,8 +16,8 @@ jobs:
     - name: Get Repo Name
       run: |
           echo "TRIGGER_REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
-          echo "PR_INFO_FILE=pr_info_${{ github.repository }}_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-          echo "SNAPSHOT=snapshot_${{ github.repository }}_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "PR_INFO_FILE=pr_info_$(basename ${{ github.repository }})_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "SNAPSHOT=snapshot_$(basename ${{ github.repository }})_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
 
     - name: Set up Python 3.8
       uses: actions/setup-python@v5
