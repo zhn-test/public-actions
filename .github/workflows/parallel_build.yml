@@ -15,7 +15,9 @@ jobs:
     steps:
     - name: Get Repo Name
       run: |
-          echo "REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
+          echo "TRIGGER_REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
+          echo "PR_INFO_FILE=pr_info_${{ env.TRIGGER_REPO_NAME }}_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "SNAPSHOT=snapshot_${{ env.TRIGGER_REPO_NAME }}_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
 
     - name: Set up Python 3.8
       uses: actions/setup-python@v5
@@ -64,6 +66,7 @@ jobs:
             echo "No commits found for PR #$PR_NUMBER or invalid API response."
             exit 1
           fi
+          echo "$REPO_NAME:$LATEST_SHA" >> ${{ env.PR_INFO_FILE }}
           curl -X POST \
             -H "Authorization: token ${{ secrets.CI_PAT_ROBOT }}" \
             -H "Accept: application/vnd.github.v3+json" \
@@ -129,112 +132,13 @@ jobs:
         ~/bin/repo sync -c -d --no-tags -j12
         df -h
         pwd && ls -atl .
+        ~/bin/repo -r -o ${{ env.SNAPSHOT }}
 
-    - name: Fetch PR
-      if: ${{ github.event_name == 'pull_request_target' }}
-      run: |
-        current_path=$(pwd)
-        echo "REPO_ROOT=$current_path" >> $GITHUB_ENV
-        echo $(ls -atl)
-        git config --global user.email "openvela-robot@xiaomi.com"
-        git config --global user.name "openvela-robot"
-        set -x
-        repo_sync_code=0
-        fetch_code=0
-        cp_code=0
-        fetch_log=$current_path/fetch.log
-        cp_log=$current_path/cp.log
-        for DEPENDENCY in ${{ env.ALL_PR }}; do
-          REPO_FULL_PATH=$(echo $DEPENDENCY | awk -F'/pull/' '{print $1}')
-          PR_NUMBER=$(echo $DEPENDENCY | awk -F'/pull/' '{print $2}')
-          PROJECT_NAME=$(echo $REPO_FULL_PATH | cut -d '/' -f 2)
-          if [ $PROJECT_NAME == "manifests" ]; then
-            cd .repo/manifests
-            echo "git fetch origin pull/$PR_NUMBER/head:pr-branch"
-            fetch_pr_result=$(git fetch origin pull/$PR_NUMBER/head:pr-branch >> $fetch_log 2>&1)
-            fetch_pr_code=$?
-            if [ $fetch_pr_code -ne 0 ]; then
-              fetch_code=1
-            fi
-            echo $fetch_pr_result
-            echo "git cherry-pick $(git rev-list --reverse HEAD..pr-branch)"
-            set +e
-            cp_pr_result=$(git cherry-pick $(git rev-list --reverse HEAD..pr-branch) >> $cp_log 2>&1)
-            cp_pr_code=$?
-            if [ $cp_pr_code -ne 0 ]; then
-              cp_code=1
-            fi
-            echo $cp_pr_result
-            cd -                                                                                                                                                  
-            ~/bin/repo sync -c -d --no-tags -j12
-            if [ $? -ne 0 ]; then
-              repo_sync_code=1
-            fi
-          else
-            manifest_content=$(cat .repo/manifests/openvela.xml)
-            echo $manifest_content
-            REPO_PATH=$(cat .repo/manifests/openvela.xml | grep "\"$PROJECT_NAME\"" | awk -F'"' '{print $2}')
-            echo $REPO_PATH
-            cd $REPO_PATH
-            echo "git fetch openvela pull/$PR_NUMBER/head:pr-branch"
-            fetch_pr_result=$(git fetch openvela pull/$PR_NUMBER/head:pr-branch >> $fetch_log 2>&1)
-            fetch_pr_code=$?
-            if [ $fetch_pr_code -ne 0 ]; then
-              fetch_code=1
-            fi
-            echo $fetch_pr_result
-            echo "git cherry-pick $(git rev-list --reverse HEAD..pr-branch)"
-            set +e
-            cp_pr_result=$(git cherry-pick $(git rev-list --reverse HEAD..pr-branch) >> $cp_log 2>&1)
-            cp_pr_code=$?
-            if [ $cp_pr_code -ne 0 ]; then
-              cp_code=1
-            fi
-            echo $cp_pr_result
-            cd -
-          fi
-        done
-        echo "REPO_SYNC_CODE=$repo_sync_code" >> $GITHUB_ENV
-        echo "FETCH_PR_CODE=$fetch_code" >> $GITHUB_ENV
-        echo "CP_PR_CODE=$cp_code" >> $GITHUB_ENV
-      continue-on-error: true
-
-    - name: check cherry-pick pr result
-      run: |
-        if [ -n "${{ env.REPO_SYNC_CODE }}" ] && [ ${{ env.REPO_SYNC_CODE }} != 0 ]; then
-          echo "repo sync after cherry-pick manifest PR failed."
-          exit 1
-        else
-          echo "repo sync after cherry-pick manifest PR success."
-        fi
-        if [ ! -n "${{ env.FETCH_PR_CODE }}" ] || ([ ${{ env.FETCH_PR_CODE }}X == 0X ] && [ ${{ env.CP_PR_CODE }}X == 0X ]) ; then
-          echo "cherry-pick PR success and continue."
-        else
-          if [ ${{ env.FETCH_PR_CODE }}X != 0X ]; then
-            cat ${{ env.REPO_ROOT }}/fetch.log
-            echo "fetch PR failed"
-            exit 1
-          else
-            cat ${{ env.REPO_ROOT }}/cp.log | grep "is a merge"
-            if [ $? -eq 0 ]; then
-              echo "There's merge commit in your PR. Please use rebase insteadof merge."
-              exit 1
-            else
-              cat ${{ env.REPO_ROOT }}/cp.log
-              echo "cherry-pick PR failed"
-              exit 1
-            fi
-          fi
-        fi
-
-    - name: Tar sources
-      run: pwd && ls -atl && cd .. && mv public-actions openvela && flock -x /tmp/lockfile tar -czf sources.tar.gz openvela
-
-    - name: Archive Source Bundle
+    - name: Archive Snapshot and PR Info
       uses: actions/upload-artifact@v4
       with:
-        name: source
-        path: sources.tar.gz
+        name: source_info
+        path: ${{ env.SNAPSHOT }} ${{ env.PR_INFO_FILE }}
 
   # 并行执行的CI任务矩阵
   ci-tasks:
@@ -252,10 +156,10 @@ jobs:
         ]
       fail-fast: false
     steps:
-      - name: Download Source Artifact
+      - name: Download Snapshot and PR Info
         uses: actions/download-artifact@v4
         with:
-          name: source
+          name: source_info
           path: .
 
       - name: Clean up disk space
@@ -276,8 +180,119 @@ jobs:
           sudo -E apt-get -qq clean
           df -h
 
-      - name: Extract sources
-        run: tar zxf sources.tar.gz
+      - name: Repo Init
+        run: |
+          #~/bin/repo init -u https://github.com/open-vela/manifests -b ${{ github.event.pull_request.base.ref }} -m openvela.xml --depth=1 --git-lfs
+          ~/bin/repo init -u https://github.com/open-vela/manifests -b dev -m openvela.xml --depth=1 --git-lfs
+          cp ${{ env.SNAPSHOT }} .repo/manifests/
+          echo "~/bin/repo init -m ${{ env.SNAPSHOT }}"
+          ~/bin/repo init -m ${{ env.SNAPSHOT }}
+          echo "REPO_INIT=true" >> $GITHUB_ENV
+
+      - name: Repo Sync
+        run: |
+          df -h
+          ~/bin/repo sync -c -d --no-tags -j12
+          df -h
+          pwd && ls -atl .
+
+      - name: Fetch PR
+        if: ${{ github.event_name == 'pull_request_target' }}
+        run: |
+          current_path=$(pwd)
+          echo "REPO_ROOT=$current_path" >> $GITHUB_ENV
+          echo $(ls -atl)
+          git config --global user.email "openvela-robot@xiaomi.com"
+          git config --global user.name "openvela-robot"
+          set -x
+          repo_sync_code=0
+          fetch_code=0
+          cp_code=0
+          fetch_log=$current_path/fetch.log
+          cp_log=$current_path/cp.log
+          for DEPENDENCY in ${{ env.ALL_PR }}; do
+            REPO_FULL_PATH=$(echo $DEPENDENCY | awk -F'/pull/' '{print $1}')
+            PR_NUMBER=$(echo $DEPENDENCY | awk -F'/pull/' '{print $2}')
+            PROJECT_NAME=$(echo $REPO_FULL_PATH | cut -d '/' -f 2)
+            PR_COMMIT=$(cat ${{ env.PR_INFO_FILE }} | grep "${PROJECT_NAME}:" | awk -F':' '{print $2}')
+            if [ $PROJECT_NAME == "manifests" ]; then
+              cd .repo/manifests
+              echo "git fetch origin pull/$PR_NUMBER/head:pr-branch"
+              fetch_pr_result=$(git fetch origin pull/$PR_NUMBER/head:pr-branch >> $fetch_log 2>&1)
+              fetch_pr_code=$?
+              if [ $fetch_pr_code -ne 0 ]; then
+                fetch_code=1
+              fi
+              echo $fetch_pr_result
+              echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
+              set +e
+              cp_pr_result=$(git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT) >> $cp_log 2>&1)
+              cp_pr_code=$?
+              if [ $cp_pr_code -ne 0 ]; then
+                cp_code=1
+              fi
+              echo $cp_pr_result
+              cd -                                                                                                                                                  
+              ~/bin/repo sync -c -d --no-tags -j12
+              if [ $? -ne 0 ]; then
+                repo_sync_code=1
+              fi
+            else
+              manifest_content=$(cat .repo/manifests/openvela.xml)
+              echo $manifest_content
+              REPO_PATH=$(cat .repo/manifests/openvela.xml | grep "\"$PROJECT_NAME\"" | awk -F'"' '{print $2}')
+              echo $REPO_PATH
+              cd $REPO_PATH
+              echo "git fetch openvela pull/$PR_NUMBER/head:pr-branch"
+              fetch_pr_result=$(git fetch openvela pull/$PR_NUMBER/head:pr-branch >> $fetch_log 2>&1)
+              fetch_pr_code=$?
+              if [ $fetch_pr_code -ne 0 ]; then
+                fetch_code=1
+              fi
+              echo $fetch_pr_result
+              echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
+              set +e
+              cp_pr_result=$(git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT) >> $cp_log 2>&1)
+              cp_pr_code=$?
+              if [ $cp_pr_code -ne 0 ]; then
+                cp_code=1
+              fi
+              echo $cp_pr_result
+              cd -
+            fi
+          done
+          echo "REPO_SYNC_CODE=$repo_sync_code" >> $GITHUB_ENV
+          echo "FETCH_PR_CODE=$fetch_code" >> $GITHUB_ENV
+          echo "CP_PR_CODE=$cp_code" >> $GITHUB_ENV
+        continue-on-error: true
+
+      - name: check cherry-pick pr result
+        run: |
+          if [ -n "${{ env.REPO_SYNC_CODE }}" ] && [ ${{ env.REPO_SYNC_CODE }} != 0 ]; then
+            echo "repo sync after cherry-pick manifest PR failed."
+            exit 1
+          else
+            echo "repo sync after cherry-pick manifest PR success."
+          fi
+          if [ ! -n "${{ env.FETCH_PR_CODE }}" ] || ([ ${{ env.FETCH_PR_CODE }}X == 0X ] && [ ${{ env.CP_PR_CODE }}X == 0X ]) ; then
+            echo "cherry-pick PR success and continue."
+          else
+            if [ ${{ env.FETCH_PR_CODE }}X != 0X ]; then
+              cat ${{ env.REPO_ROOT }}/fetch.log
+              echo "fetch PR failed"
+              exit 1
+            else
+              cat ${{ env.REPO_ROOT }}/cp.log | grep "is a merge"
+              if [ $? -eq 0 ]; then
+                echo "There's merge commit in your PR. Please use rebase insteadof merge."
+                exit 1
+              else
+                cat ${{ env.REPO_ROOT }}/cp.log
+                echo "cherry-pick PR failed"
+                exit 1
+              fi
+            fi
+          fi
 
       - name: Docker Login
         uses: docker/login-action@v3
@@ -300,7 +315,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.task }}_${{ env.REPO_NAME }}-${{ github.event.pull_request.number }}
+          name: ${{ matrix.task }}_${{ env.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}
           path: nuttx/nuttx nuttx/vela_*.bin nuttx/.config
 
       - name: Run autotest tasks inside Docker container
@@ -336,7 +351,7 @@ jobs:
         if: endsWith(matrix.task, '-citest')
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.task }}_autotest_${{ env.REPO_NAME }}-${{ github.event.pull_request.number }}
+          name: ${{ matrix.task }}_autotest_${{ env.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}
           path: output/
 
       - name: Exit with autotest exit code
