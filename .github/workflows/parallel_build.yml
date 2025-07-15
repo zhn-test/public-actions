@@ -16,8 +16,8 @@ jobs:
     - name: Get Repo Name
       run: |
           echo "TRIGGER_REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
-          echo "PR_INFO_FILE=pr_info_${{ env.TRIGGER_REPO_NAME }}_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-          echo "SNAPSHOT=snapshot_${{ env.TRIGGER_REPO_NAME }}_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "PR_INFO_FILE=pr_info_${{ github.repository }}_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "SNAPSHOT=snapshot_${{ github.repository }}_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
 
     - name: Set up Python 3.8
       uses: actions/setup-python@v5
@@ -132,7 +132,7 @@ jobs:
         ~/bin/repo sync -c -d --no-tags -j12
         df -h
         pwd && ls -atl .
-        ~/bin/repo -r -o ${{ env.SNAPSHOT }}
+        ~/bin/repo manifest -r -o ${{ env.SNAPSHOT }}
 
     - name: Archive Snapshot and PR Info
       uses: actions/upload-artifact@v4
