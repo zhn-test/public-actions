@@ -194,9 +194,9 @@ jobs:
         run: |
           #~/bin/repo init -u https://github.com/open-vela/manifests -b ${{ github.event.pull_request.base.ref }} -m openvela.xml --depth=1 --git-lfs
           ~/bin/repo init -u https://github.com/open-vela/manifests -b dev -m openvela.xml --depth=1 --git-lfs
-          cp ${{ fromJSON(needs.setup.outputs.SNAPSHOT) }}  .repo/manifests/
-          echo "~/bin/repo init -m ${{ fromJSON(needs.setup.outputs.SNAPSHOT) }}"
-          ~/bin/repo init -m ${{ fromJSON(needs.setup.outputs.SNAPSHOT) }}
+          cp ${{ needs.setup.outputs.SNAPSHOT }}  .repo/manifests/
+          echo "~/bin/repo init -m ${{ needs.setup.outputs.SNAPSHOT }}"
+          ~/bin/repo init -m ${{ needs.setup.outputs.SNAPSHOT }}
           echo "REPO_INIT=true" >> $GITHUB_ENV
 
       - name: Repo Sync
