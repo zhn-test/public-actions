@@ -138,7 +138,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: source_info
-        path: ${{ env.SNAPSHOT }} ${{ env.PR_INFO_FILE }}
+        path: |
+          ${{ env.SNAPSHOT }}
+          ${{ env.PR_INFO_FILE }}
 
   # 并行执行的CI任务矩阵
   ci-tasks:
