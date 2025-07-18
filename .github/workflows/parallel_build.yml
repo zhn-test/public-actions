@@ -190,21 +190,21 @@ jobs:
        #    sudo -E apt-get -qq clean
        #    df -h
 
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: false
-          
-          # all of these default to true, but feel free to set to
-          # "false" if necessary for your workflow
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
+       #- name: Free Disk Space (Ubuntu)
+       #  uses: jlumbroso/free-disk-space@main
+       #  with:
+       #    # this might remove tools that are actually needed,
+       #    # if set to "true" but frees about 6 GB
+       #    tool-cache: false
+       #    
+       #    # all of these default to true, but feel free to set to
+       #    # "false" if necessary for your workflow
+       #    android: true
+       #    dotnet: true
+       #    haskell: true
+       #    large-packages: true
+       #    docker-images: true
+       #    swap-storage: true
 
       - name: Download and install repo
         run: |
@@ -349,52 +349,53 @@ jobs:
             fi
             echo $build_cmd
 
-            #docker run --rm \
-            #  -v ${{ github.workspace }}:/workspace \
-            #  -w /workspace \
-            #  ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-            #  /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd"
+            docker run --rm \
+              -v ${{ github.workspace }}:/workspace \
+              -w /workspace \
+              ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+              /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd"
 
-            #echo "=== Archiving CI results for $task ==="
-            #ci_artifact_name="${{ matrix.group }}_${task}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
-            ## 使用GitHub CLI上传
-            #gh artifact upload "nuttx/nuttx nuttx/vela_*.bin nuttx/.config" --name "$ci_artifact_name" --workflow "$GITHUB_WORKFLOW"
-            #mkdir package_back
-            #cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config package_back
-            #
-            #echo "=== Cleaning up after $task ==="
-            #sudo ~/bin/repo forall -v -c 'git clean -dfx; git reset --hard HEAD' || true
+            echo "=== Archiving CI results for $task ==="
+            ci_artifact_name="${{ matrix.group }}_${task}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
+            # 使用GitHub CLI上传
+            gh artifact upload "nuttx/nuttx nuttx/vela_*.bin nuttx/.config" --name "$ci_artifact_name" --workflow "$GITHUB_WORKFLOW"
+            mkdir package_back
+            cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config package_back
+            
+            echo "=== Cleaning up after $task ==="
+            sudo ~/bin/repo forall -v -c 'git clean -dfx; git reset --hard HEAD' || true
 
-            #if [[ "$task" == *-citest ]]; then
-            #  echo "Run autotest tasks: $task"
-            #  STANDARD_CONFIG="${task%-citest*}"
-            #  docker run --rm \
-            #    -v ${{ github.workspace }}:/workspace \
-            #    -w /workspace \
-            #    ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-            #    /bin/bash -c "free -m && df -h && cp package_back/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m 'common or ${{ matrix.task }}' ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json"
-            #    /bin/bash -c "ls -atl"
+            if [[ "$task" == *-citest ]]; then
+              echo "Run autotest tasks: $task"
+              STANDARD_CONFIG="${task%-citest*}"
+              docker run --rm \
+                -v ${{ github.workspace }}:/workspace \
+                -w /workspace \
+                ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+                /bin/bash -c "free -m && df -h && cp package_back/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m 'common or ${{ matrix.task }}' ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json"
+                /bin/bash -c "ls -atl"
 
-            #  echo "Check autotest result: $task"
-            #  cd ${{ github.workspace }}
-            #  mkdir output
-            #  cp nuttx/nuttx ./*.log ./autotest.json output
-            #  failed=$(cat autotest.json | jq '.report.summary.failed')
-            #  if [ "$failed" != "null" ] && [ "$failed" != "0" ]; then
-            #    echo "autotest failed: $failed"
-            #    result="failed"
-            #    exit 1;
-            #  else
-            #    echo "autotest passed"
-            #    result="success"
-            #  fi
-            #  echo "::set-output name=AUTOTEST_RESULT::${result}"
-            #fi
+              echo "Check autotest result: $task"
+              cd ${{ github.workspace }}
+              mkdir output
+              cp nuttx/nuttx ./*.log ./autotest.json output
+              failed=$(cat autotest.json | jq '.report.summary.failed')
+              if [ "$failed" != "null" ] && [ "$failed" != "0" ]; then
+                echo "autotest failed: $failed"
+                result="failed"
+                exit 1;
+              else
+                echo "autotest passed"
+                result="success"
+              fi
+              echo "::set-output name=AUTOTEST_RESULT::${result}"
+            fi
 
-            #echo "=== Archiving autotest results for $task ==="
-            #autotest_artifact_name="${{ matrix.group }}_${task}_autotest_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
-            ## 使用GitHub CLI上传
-            #gh artifact upload "output/" --name "$autotest_artifact_name" --workflow "$GITHUB_WORKFLOW"
+            echo "=== Archiving autotest results for $task ==="
+            autotest_artifact_name="${{ matrix.group }}_${task}_autotest_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
+            # 使用GitHub CLI上传
+            gh artifact upload "output/" --name "$autotest_artifact_name" --workflow "$GITHUB_WORKFLOW"
+          done
 
 
   # 后置处理作业，用于更新依赖PR状态
