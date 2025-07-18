@@ -356,12 +356,14 @@ jobs:
               -v ${{ github.workspace }}:/workspace \
               -w /workspace \
               ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-              /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd"
+              /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd && ls -atl nuttx"
 
             echo "=== Backup CI results for $task ==="
             ci_artifact_name="${{ matrix.group }}_${task}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
             echo $ci_artifact_name
             mkdir $ci_artifact_name
+            pwd
+            ls -atl .
             cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config $ci_artifact_name
             
             echo "=== Cleaning up after $task ==="
