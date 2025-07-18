@@ -172,23 +172,39 @@ jobs:
           name: source_info
           path: .
 
-      - name: Clean up disk space
-        run: |
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo rm -rf /etc/apt/sources.list.d/* /usr/local/lib/android /etc/mysql /etc/php /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force
-          sudo docker builder prune -a
-          sudo docker system prune -af
-          sudo -E apt-get -y purge azure-cli* docker* ghc* zulu* hhvm* llvm* firefox* google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* mongodb* moby* snap* || true
-          sudo -E apt-get -qq update
-          sudo -E apt-get -qq autoremove --purge
-          sudo -E apt-get -qq clean
-          df -h
+       #- name: Clean up disk space
+       #  run: |
+       #    sudo apt-get clean
+       #    sudo rm -rf /var/lib/apt/lists/*
+       #    sudo rm -rf /usr/share/dotnet
+       #    sudo rm -rf /opt/ghc
+       #    sudo rm -rf "/usr/local/share/boost"
+       #    sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+       #    sudo rm -rf /etc/apt/sources.list.d/* /usr/local/lib/android /etc/mysql /etc/php /opt/hostedtoolcache/CodeQL
+       #    sudo docker image prune --all --force
+       #    sudo docker builder prune -a
+       #    sudo docker system prune -af
+       #    sudo -E apt-get -y purge azure-cli* docker* ghc* zulu* hhvm* llvm* firefox* google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* mongodb* moby* snap* || true
+       #    sudo -E apt-get -qq update
+       #    sudo -E apt-get -qq autoremove --purge
+       #    sudo -E apt-get -qq clean
+       #    df -h
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: false
+          
+          # all of these default to true, but feel free to set to
+          # "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
 
       - name: Download and install repo
         run: |
@@ -323,83 +339,67 @@ jobs:
 
       - name: Run CI tasks inside Docker container
         run: |
-          if [[ "${{ matrix.task }}" == *:* ]]; then
-            build_cmd="./build.sh ${{ matrix.task }} -e -Werror -j8"
-          else
-            build_cmd="./build.sh vendor/openvela/boards/vela/configs/${{ matrix.task }} -e -Werror -j8"
-          fi
-          echo $build_cmd
-          docker run --rm \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-            /bin/bash -c "pwd && touch ${{ matrix.task }} && df -h && ls -atl && $build_cmd"
+          # 遍历当前组的所有任务
+          for task in ${{ join(matrix.tasks, ' ') }}; do
+            rm -rf package_back output || true
+            echo "=== Starting task: $task ==="
+            if [[ "$task" == *:* ]]; then
+              build_cmd="./build.sh $task -e -Werror -j8"
+            else
+              build_cmd="./build.sh vendor/openvela/boards/vela/configs/$task -e -Werror -j8"
+            fi
+            echo $build_cmd
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.task }}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}
-          path: |
-            nuttx/nuttx
-            nuttx/vela_*.bin
-            nuttx/.config
+            docker run --rm \
+              -v ${{ github.workspace }}:/workspace \
+              -w /workspace \
+              ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+              /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd"
 
-      - name: Clean
-        if: endsWith(matrix.task, '-citest')
-        run: |
-          echo 'export PATH=~/bin:$PATH' >> $HOME/.bashrc
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-          chmod a+x ~/bin/repo
-          mkdir package_back
-          cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config package_back
-          sudo ~/bin/repo forall -v -c 'git clean -dfx; git reset --hard HEAD'
-          rm -rf .repo
-          rm -rf prebuilts/clang apps
-        continue-on-error: true
+            # 归档当前任务的产物（每次任务后立即归档）
+            echo "=== Archiving CI results for $task ==="
+            ci_artifact_name="${{ matrix.group }}_${task}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
+            # 使用GitHub CLI上传（比actions/upload-artifact更灵活）
+            gh artifact upload "nuttx/nuttx nuttx/vela_*.bin nuttx/.config" --name "$ci_artifact_name" --workflow "$GITHUB_WORKFLOW"
+            mkdir package_back
+            cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config package_back
+            
+            # 清理当前任务的产物，避免影响下一个任务
+            echo "=== Cleaning up after $task ==="
+            sudo ~/bin/repo forall -v -c 'git clean -dfx; git reset --hard HEAD' || true
 
-      - name: Run autotest tasks inside Docker container
-        if: endsWith(matrix.task, '-citest')
-        run: |
-          STANDARD_CONFIG="${matrix.task%-citest*}"
-          docker run --rm \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-            /bin/bash -c "free -m && df -h && cp package_back/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m 'common or ${{ matrix.task }}' ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json"
-            /bin/bash -c "ls -atl"
+            if [[ "$task" == *-citest ]]; then
+              echo "Run autotest tasks: $task"
+              STANDARD_CONFIG="${task%-citest*}"
+              docker run --rm \
+                -v ${{ github.workspace }}:/workspace \
+                -w /workspace \
+                ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+                /bin/bash -c "free -m && df -h && cp package_back/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m 'common or ${{ matrix.task }}' ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json"
+                /bin/bash -c "ls -atl"
 
-      - name: Check autotest result
-        if: endsWith(matrix.task, '-citest')
-        id: autotest_result
-        run: |
-          cd ${{ github.workspace }}
-          mkdir output
-          cp nuttx/nuttx ./*.log ./autotest.json output
-          failed=$(cat autotest.json | jq '.report.summary.failed')
-          if [ "$failed" != "null" ] && [ "$failed" != "0" ]; then
-            echo "autotest failed: $failed"
-            result="failed"
-          else
-            echo "autotest passed"
-            result="success"
-          fi
-          echo "::set-output name=AUTOTEST_RESULT::${result}"
+              echo "Check autotest result: $task"
+              cd ${{ github.workspace }}
+              mkdir output
+              cp nuttx/nuttx ./*.log ./autotest.json output
+              failed=$(cat autotest.json | jq '.report.summary.failed')
+              if [ "$failed" != "null" ] && [ "$failed" != "0" ]; then
+                echo "autotest failed: $failed"
+                result="failed"
+                exit 1;
+              else
+                echo "autotest passed"
+                result="success"
+              fi
+              echo "::set-output name=AUTOTEST_RESULT::${result}"
+            fi
 
-      - name: Upload Artifact
-        if: endsWith(matrix.task, '-citest')
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.task }}_autotest_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}
-          path: output/
+            # 归档当前任务的产物（每次任务后立即归档）
+            echo "=== Archiving autotest results for $task ==="
+            autotest_artifact_name="${{ matrix.group }}_${task}_autotest_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
+            # 使用GitHub CLI上传（比actions/upload-artifact更灵活）
+            gh artifact upload "output/" --name "$autotest_artifact_name" --workflow "$GITHUB_WORKFLOW"
 
-      - name: Exit with autotest exit code
-        if: endsWith(matrix.task, '-citest')
-        run: |
-          if [ ${{ steps.autotest_result.outputs.AUTOTEST_RESULT }} == "success" ]; then
-            exit 0;
-          else
-            exit 1;
-          fi
 
   # 后置处理作业，用于更新依赖PR状态
   post-processing:
