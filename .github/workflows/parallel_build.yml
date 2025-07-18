@@ -382,7 +382,7 @@ jobs:
           echo "ARTIFACTS_JSON=$(pwd)/artifacts-${{ matrix.group }}.json" >> $GITHUB_ENV
           echo "json_output=$json_output" >> $GITHUB_OUTPUT
           echo ${{ env.ARTIFACTS_JSON }}
-          echo ${{ outputs.json_output }}
+          #echo ${{ outputs.json_output }}
 
         #- name: Upload artifacts
         #  uses: actions/upload-artifact@v4
