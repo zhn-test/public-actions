@@ -380,13 +380,15 @@ jobs:
           # 输出 JSON 文件路径供后续步骤使用
           echo "ARTIFACTS_JSON=$(pwd)/artifacts-${{ matrix.group }}.json" >> $GITHUB_ENV
           echo "json_output=$json_output" >> $GITHUB_OUTPUT
+          echo ${{ env.ARTIFACTS_JSON }}
+          echo ${{ json_output }}
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.group }}_${{ json_output.task }}
-          path: |
-            ${{ matrix.group }}_${{ json_output.task }}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}
+        #- name: Upload artifacts
+        #  uses: actions/upload-artifact@v4
+        #  with:
+        #    name: ${{ matrix.group }}_${{ json_output.task }}
+        #    path: |
+        #      ${{ matrix.group }}_${{ json_output.task }}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}
 
             #   if [[ "$task" == *-citest ]]; then
             #     echo "Run autotest tasks: $task"
