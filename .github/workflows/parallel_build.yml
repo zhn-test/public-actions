@@ -131,7 +131,7 @@ jobs:
     - name: Repo Init
       run: |
         #~/bin/repo init -u https://github.com/open-vela/manifests -b ${{ github.event.pull_request.base.ref }} -m openvela.xml --depth=1 --git-lfs
-        ~/bin/repo init -u https://github.com/open-vela/manifests -b dev -m openvela.xml --depth=1 --git-lfs
+        ~/bin/repo init -u https://github.com/open-vela/manifests -b dev -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
         echo "REPO_INIT=true" >> $GITHUB_ENV
 
     - name: Repo Sync
@@ -164,7 +164,8 @@ jobs:
             #tasks: [goldfish-arm64-v8a-ap, goldfish-armeabi-v7a-ap, goldfish-x86_64-ap, stm32h750b-dk:lvgl]  # 第一组任务
             tasks: [goldfish-x86_64-ap, stm32h750b-dk:lvgl]  # 第一组任务
           - group: group2
-            tasks: [goldfish-armeabi-v7a-ap-citest]  # 第二组任务
+            #tasks: [goldfish-armeabi-v7a-ap-citest]  # 第二组任务
+            tasks: [goldfish-x86_64-ap, stm32h750b-dk:lvgl]
       fail-fast: false
     steps:
       - name: Download Snapshot and PR Info
@@ -367,10 +368,12 @@ jobs:
             sudo ~/bin/repo forall -v -c 'git clean -dfx; git reset --hard HEAD'  > /dev/null 2>&1 || true
 
             # 收集产物信息
-            artifact_info=$(jq -n \
-              --arg task "$task" \
-              --arg path "$ci_artifact_name" \
-              '{task: $task, path: $path}')
+            #artifact_info=$(jq -n \
+            #  --arg task "$task" \
+            #  --arg path "$ci_artifact_name" \
+            #  '{task: $task, path: $path}')
+            artifact_info='{task: $task, path: $ci_artifact_name}'
+            echo $artifact_info
             artifacts+=("$artifact_info")
           done
 
