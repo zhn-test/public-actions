@@ -379,7 +379,7 @@ jobs:
 
           # 输出 JSON 文件路径供后续步骤使用
           echo "ARTIFACTS_JSON=$(pwd)/artifacts-${{ matrix.group }}.json" >> $GITHUB_ENV
-          echo "$json_output" >> $GITHUB_OUTPUT
+          echo "json_output=$json_output" >> $GITHUB_OUTPUT
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
