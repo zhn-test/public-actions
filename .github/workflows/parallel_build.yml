@@ -340,6 +340,7 @@ jobs:
 
       - name: Run CI tasks inside Docker container
         run: |
+          artifacts=[]
           for task in ${{ join(matrix.tasks, ' ') }}; do
             rm -rf package_back output || true
             echo "=== Starting task: $task ==="
