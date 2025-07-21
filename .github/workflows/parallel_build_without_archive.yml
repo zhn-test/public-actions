@@ -374,11 +374,13 @@ jobs:
             if [[ "$task" == *-citest ]]; then
               echo "Run autotest tasks: $task"
               STANDARD_CONFIG="${task%-citest*}"
+              test_model=${STANDARD_CONFIG//-/_}
+              echo "pytest -m \"common or $test_model\" ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json --maxfail=10"
               docker run --rm \
                 -v ${{ github.workspace }}:/workspace \
                 -w /workspace \
                 ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-                /bin/bash -c "free -m && df -h && cp $ci_artifact_name/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m \"common or $task\" ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json"
+                /bin/bash -c "free -m && df -h && cp $ci_artifact_name/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m \"common or $test_model\" ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json --maxfail=10"
                 /bin/bash -c "ls -atl"
 
               echo "Check autotest result: $task"
