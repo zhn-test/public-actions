@@ -364,7 +364,11 @@ jobs:
             mkdir $ci_artifact_name
             pwd
             ls -atl .
-            cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config $ci_artifact_name
+            if [[ "$task" == *:* ]]; then
+              cp nuttx/nuttx nuttx/.config $ci_artifact_name
+            else
+              cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config $ci_artifact_name
+            fi
             
             echo "=== Cleaning up after $task ==="
             sudo ~/bin/repo forall -v -c 'git clean -dfx; git reset --hard HEAD'  > /dev/null 2>&1 || true
