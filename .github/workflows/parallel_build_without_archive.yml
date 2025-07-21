@@ -378,7 +378,7 @@ jobs:
                 -v ${{ github.workspace }}:/workspace \
                 -w /workspace \
                 ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-                /bin/bash -c "free -m && df -h && cp $task/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m 'common or ${{ matrix.task }}' ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json"
+                /bin/bash -c "free -m && df -h && cp $ci_artifact_name/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m 'common or ${{ matrix.task }}' ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json"
                 /bin/bash -c "ls -atl"
 
               echo "Check autotest result: $task"
