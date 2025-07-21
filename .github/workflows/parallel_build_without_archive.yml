@@ -158,12 +158,14 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [group1, group2]  # 定义两个组
+        group: [ubuntu22-01, ubuntu22-02, ubuntu22-03]  # 定义组
         include:
-          - group: group1
+          - group: ubuntu22-01
             tasks: [goldfish-arm64-v8a-ap, goldfish-armeabi-v7a-ap, goldfish-x86_64-ap, stm32h750b-dk:lvgl]  # 第一组任务
-          - group: group2
+          - group: ubuntu22-02
             tasks: [goldfish-armeabi-v7a-ap-citest]  # 第二组任务
+          - group: ubuntu22-03
+            tasks: [goldfish-x86_64-ap-citest]  # 第三组任务
       fail-fast: false
     steps:
       - name: Download Snapshot and PR Info
@@ -171,24 +173,6 @@ jobs:
         with:
           name: source_info
           path: .
-
-       #- name: Clean up disk space
-       #  run: |
-       #    sudo apt-get clean
-       #    sudo rm -rf /var/lib/apt/lists/*
-       #    sudo rm -rf /usr/share/dotnet
-       #    sudo rm -rf /opt/ghc
-       #    sudo rm -rf "/usr/local/share/boost"
-       #    sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-       #    sudo rm -rf /etc/apt/sources.list.d/* /usr/local/lib/android /etc/mysql /etc/php /opt/hostedtoolcache/CodeQL
-       #    sudo docker image prune --all --force
-       #    sudo docker builder prune -a
-       #    sudo docker system prune -af
-       #    sudo -E apt-get -y purge azure-cli* docker* ghc* zulu* hhvm* llvm* firefox* google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* mongodb* moby* snap* || true
-       #    sudo -E apt-get -qq update
-       #    sudo -E apt-get -qq autoremove --purge
-       #    sudo -E apt-get -qq clean
-       #    df -h
 
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
