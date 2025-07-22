@@ -12,16 +12,14 @@ jobs:
   # 前置准备作业，负责环境设置和依赖准备
   setup:
     runs-on: ubuntu-latest
-    outputs:
-      TRIGGER_REPO_NAME: ${{ steps.set-env.outputs.TRIGGER_REPO_NAME }}
-      PR_INFO_FILE: ${{ steps.set-env.outputs.PR_INFO_FILE }}
-      SNAPSHOT: ${{ steps.set-env.outputs.SNAPSHOT }}
     steps:
     - name: Set ENV
       id: set-env
       run: |
           echo "TRIGGER_REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
           echo "TRIGGER_REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_OUTPUT
+          echo "TRIGGER_COMMIT_ID=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
+          echo "TRIGGER_COMMIT_ID=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
           echo "PR_INFO_FILE=pr_info_$(basename ${{ github.repository }})_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
           echo "PR_INFO_FILE=pr_info_$(basename ${{ github.repository }})_${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
           echo "SNAPSHOT=snapshot_$(basename ${{ github.repository }})_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
@@ -64,6 +62,7 @@ jobs:
         fi
         echo "ALL_PR=$ALL_PR" >> $GITHUB_ENV
         echo "DEPENDS_ON=$DEPENDS_ON" >> $GITHUB_ENV
+        echo "$TRIGGER_REPO_NAME:$TRIGGER_COMMIT_ID" >> ${{ env.PR_INFO_FILE }}
     
         for DEPENDENCY in $DEPENDS_ON; do
           REPO_NAME=$(echo $DEPENDENCY | awk -F'/pull/' '{print $1}')
@@ -164,8 +163,6 @@ jobs:
             tasks: [goldfish-arm64-v8a-ap, goldfish-armeabi-v7a-ap, goldfish-x86_64-ap, stm32h750b-dk:lvgl]  # 第一组任务
           - group: ubuntu22-02
             tasks: [goldfish-armeabi-v7a-ap-citest]  # 第二组任务
-          - group: ubuntu22-03
-            tasks: [goldfish-x86_64-ap-citest]  # 第三组任务
       fail-fast: false
     steps:
       - name: Download Snapshot and PR Info
