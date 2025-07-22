@@ -263,13 +263,16 @@ jobs:
                 repo_sync_code=1
               fi
             else
-              manifest_content=$(cat .repo/manifests/openvela.xml)
-              echo $manifest_content
-              REPO_PATH=$(cat .repo/manifests/openvela.xml | grep "\"$PROJECT_NAME\"" | awk -F'"' '{print $2}')
-              echo $REPO_PATH
+              manifest_content=$(cat .repo/manifests/${{ needs.setup.outputs.SNAPSHOT }})
+              #echo $manifest_content
+              REPO_PATH=$(cat .repo/manifests/${{ needs.setup.outputs.SNAPSHOT }} | grep "\"$PROJECT_NAME\"" | awk -F'"' '{print $2}')
+              #echo $REPO_PATH
               cd $REPO_PATH
-              echo "git fetch openvela pull/$PR_NUMBER/head:pr-branch"
-              fetch_pr_result=$(git fetch openvela pull/$PR_NUMBER/head:pr-branch >> $fetch_log 2>&1)
+              git remote add test ${{ github.event.pull_request.base.repo.html_url }}
+              echo "git fetch test pull/$PR_NUMBER/head:pr-branch"
+              fetch_pr_result=$(git fetch test pull/$PR_NUMBER/head:pr-branch >> $fetch_log 2>&1)
+              #echo "git fetch openvela pull/$PR_NUMBER/head:pr-branch"
+              #fetch_pr_result=$(git fetch openvela pull/$PR_NUMBER/head:pr-branch >> $fetch_log 2>&1)
               fetch_pr_code=$?
               if [ $fetch_pr_code -ne 0 ]; then
                 fetch_code=1
