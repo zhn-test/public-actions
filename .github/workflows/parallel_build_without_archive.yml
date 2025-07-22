@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       TRIGGER_REPO_NAME: ${{ steps.set-env.outputs.TRIGGER_REPO_NAME }}
-      TRIGGER_REPO_NAME: ${{ steps.set-env.outputs.TRIGGER_COMMIT_ID }}
+      TRIGGER_COMMIT_ID: ${{ steps.set-env.outputs.TRIGGER_COMMIT_ID }}
       PR_INFO_FILE: ${{ steps.set-env.outputs.PR_INFO_FILE }}
       SNAPSHOT: ${{ steps.set-env.outputs.SNAPSHOT }}
     steps:
