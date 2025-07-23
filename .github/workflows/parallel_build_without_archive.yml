@@ -317,7 +317,7 @@ jobs:
           else
             echo "repo sync after cherry-pick manifest PR success."
           fi
-          if [ ! -n "${{ env.FETCH_PR_CODE }}" ] || ([ ${{ env.FETCH_PR_CODE }}X == 0X ] && [ ${{ env.CP_PR_CODE }}X == 0X ]) ; then
+          if [ ! -n "${{ env.FETCH_PR_CODE }}" ] || ([ ${{ env.FETCH_PR_CODE }}X == 0X ] && [ ${{ env.CP_PR_CODE }}X == 0X ] && [ ${{ env.CODE_BASE_CHECK }}X == 0X ]) ; then
             echo "cherry-pick PR success and continue."
           else
             if [ ${{ env.CODE_BASE_CHECK }}X != 0X ]; then
