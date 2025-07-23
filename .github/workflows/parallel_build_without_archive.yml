@@ -233,6 +233,7 @@ jobs:
           repo_sync_code=0
           fetch_code=0
           cp_code=0
+          code_base_check=0
           fetch_log=$current_path/fetch.log
           cp_log=$current_path/cp.log
           for DEPENDENCY in ${{ needs.setup.outputs.ALL_PR }}; do
@@ -249,6 +250,12 @@ jobs:
                 fetch_code=1
               fi
               echo $fetch_pr_result
+              git branch -vv
+              echo "git merge-base -a pr-branch HEAD"
+              git merge-base -a pr-branch HEAD
+              if [ $? -ne 0 ]; then
+                code_base_check=1
+              fi
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
               set +e
               cp_pr_result=$(git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT) >> $cp_log 2>&1)
@@ -279,8 +286,11 @@ jobs:
               fi
               echo $fetch_pr_result
               git branch -vv
-              git log pr-branch
-              git log HEAD
+              echo "git merge-base -a pr-branch HEAD"
+              git merge-base -a pr-branch HEAD
+              if [ $? -ne 0 ]; then
+                code_base_check=1
+              fi
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
               git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)
               set +e
@@ -296,6 +306,7 @@ jobs:
           echo "REPO_SYNC_CODE=$repo_sync_code" >> $GITHUB_ENV
           echo "FETCH_PR_CODE=$fetch_code" >> $GITHUB_ENV
           echo "CP_PR_CODE=$cp_code" >> $GITHUB_ENV
+          echo "CODE_BASE_CHECK=$code_base_check" >> $GITHUB_ENV
         continue-on-error: true
 
       - name: check cherry-pick pr result
@@ -309,6 +320,10 @@ jobs:
           if [ ! -n "${{ env.FETCH_PR_CODE }}" ] || ([ ${{ env.FETCH_PR_CODE }}X == 0X ] && [ ${{ env.CP_PR_CODE }}X == 0X ]) ; then
             echo "cherry-pick PR success and continue."
           else
+            if [ ${{ env.CODE_BASE_CHECK }}X != 0X ]; then
+              echo "PR code base need to rebase with source repo."
+              exit
+            fi
             if [ ${{ env.FETCH_PR_CODE }}X != 0X ]; then
               cat ${{ env.REPO_ROOT }}/fetch.log
               echo "fetch PR failed"
