@@ -281,7 +281,7 @@ jobs:
               git log pr-branch
               git log HEAD
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
-              git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT
+              git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)
               set +e
               cp_pr_result=$(git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT) >> $cp_log 2>&1)
               cp_pr_code=$?
