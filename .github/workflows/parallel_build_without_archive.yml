@@ -252,8 +252,8 @@ jobs:
               echo $fetch_pr_result
               git branch -vv
               echo "git merge-base -a pr-branch HEAD"
-              git merge-base -a pr-branch HEAD
-              if [ $? -ne 0 ]; then
+              common_base_commit=$(git merge-base -a pr-branch HEAD || true)
+              if [ "$common_base_commit"X == ""X ]; then
                 code_base_check=1
               fi
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
@@ -287,8 +287,8 @@ jobs:
               echo $fetch_pr_result
               git branch -vv
               echo "git merge-base -a pr-branch HEAD"
-              git merge-base -a pr-branch HEAD
-              if [ $? -ne 0 ]; then
+              common_base_commit=$(git merge-base -a pr-branch HEAD || true)
+              if [ "$common_base_commit"X == ""X ]; then
                 code_base_check=1
               fi
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
