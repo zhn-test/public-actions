@@ -429,11 +429,11 @@ jobs:
     steps:
       - name: Post Processing
         env:
-          ci-tasks_status: ${{ needs.build.outputs.status }}
+          ci-tasks_status: ${{ needs.ci-tasks.outputs.status }}
         run: |
-          echo "Job status: ${{ needs.build.outputs.status }}"
+          echo "Job status: ${{ needs.ci-tasks.outputs.status }}"
 
-          if [[ "${{ needs.build.outputs.status }}" == "success" ]]; then
+          if [[ "${{ needs.ci-tasks.outputs.status }}" == "success" ]]; then
             ci_status="success"
           else
             ci_status="failure"
