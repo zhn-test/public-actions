@@ -177,6 +177,7 @@ jobs:
       fail-fast: false
     outputs:
       status: ${{ steps.check.outputs.status }}
+      DEPENDS_ON: ${{ needs.setup.outputs.DEPENDS_ON }}
     steps:
       - name: Download Snapshot and PR Info
         uses: actions/download-artifact@v4
@@ -438,7 +439,7 @@ jobs:
           else
             ci_status="failure"
           fi
-          for DEPENDENCY in ${{ env.DEPENDS_ON }}; do
+          for DEPENDENCY in ${{ needs.ci-tasks.outputs.DEPENDS_ON }}; do
             REPO_NAME=$(echo $DEPENDENCY | awk -F'/pull/' '{print $1}')
             PR_NUMBER=$(echo $DEPENDENCY | awk -F'/pull/' '{print $2}')
             PR_COMMITS=$(curl -s -H "Authorization: token ${{ secrets.CI_PAT_ROBOT }}" "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER")
