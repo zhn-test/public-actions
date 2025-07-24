@@ -175,6 +175,8 @@ jobs:
           - group: ubuntu22-02
             tasks: [goldfish-armeabi-v7a-ap-citest]  # 第二组任务
       fail-fast: false
+    outputs:
+      status: ${{ steps.check.outputs.status }}
     steps:
       - name: Download Snapshot and PR Info
         uses: actions/download-artifact@v4
@@ -413,6 +415,11 @@ jobs:
             fi
           done
 
+      - name: Check status
+        id: check
+        if: always()
+        run: |
+          echo "status=${{ job.status }}" >> $GITHUB_OUTPUT
 
   # 后置处理作业，用于更新依赖PR状态
   post-processing:
@@ -421,10 +428,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Post Processing
+        env:
+          ci-tasks_status: ${{ needs.build.outputs.status }}
         run: |
-          echo "Job status: ${{ job.status }}"
+          echo "Job status: ${{ needs.build.outputs.status }}"
 
-          if [[ "${{ job.status }}" == "success" ]]; then
+          if [[ "${{ needs.build.outputs.status }}" == "success" ]]; then
             ci_status="success"
           else
             ci_status="failure"
