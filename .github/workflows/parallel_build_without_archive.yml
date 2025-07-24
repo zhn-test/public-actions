@@ -178,6 +178,7 @@ jobs:
     outputs:
       status: ${{ steps.check.outputs.status }}
       DEPENDS_ON: ${{ needs.setup.outputs.DEPENDS_ON }}
+      CURRENT_ACTION_URL: ${{ needs.setup.outputs.CURRENT_ACTION_URL }}
     steps:
       - name: Download Snapshot and PR Info
         uses: actions/download-artifact@v4
@@ -457,9 +458,9 @@ jobs:
                 "state": '"\"$ci_status\""',
                 "description": "CI '"$ci_status"'",
                 "context": "CI triggered by other PR",
-                "target_url": "${{ env.CURRENT_ACTION_URL }}"
+                "target_url": "${{ needs.ci-tasks.outputs.CURRENT_ACTION_URL }}"
               }'
-            COMMENT_BODY="CI $ci_status. \n PR list is $ALL_PR.\n CI url: ${{ env.CURRENT_ACTION_URL }}"
+            COMMENT_BODY="CI $ci_status. \n PR list is $ALL_PR.\n CI url: ${{ needs.ci-tasks.outputs.CURRENT_ACTION_URL }}"
             curl -X POST \
               -H "Authorization: token ${{ secrets.CI_PAT_ROBOT }}" \
               -H "Accept: application/vnd.github.v3+json" \
