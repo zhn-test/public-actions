@@ -1,4 +1,4 @@
-name: parallel_build_without_archive
+name: parallel_build_with_archive
 
 # Controls when the workflow will run
 on:
