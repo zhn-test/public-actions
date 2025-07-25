@@ -331,7 +331,7 @@ jobs:
           else
             echo "repo sync after cherry-pick manifest PR success."
           fi
-          if [ ${{ env.REPO_EXIST }}X != 0X ]; then
+          if [ -n "${{ env.REPO_EXIST }}" ] && [ ${{ env.REPO_EXIST }}X != 0X ]; then
             echo "repo is not exist, please check."
             exit 1
           fi
