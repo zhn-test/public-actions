@@ -374,7 +374,7 @@ jobs:
               /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd && ls -atl nuttx"
 
             echo "=== Backup CI results for $task ==="
-            ci_artifact_name="${{ matrix.group }}/${task}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
+            ci_artifact_name="${{ matrix.group }}/${task//:/_}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
             echo $ci_artifact_name
             mkdir -p $ci_artifact_name || true
             pwd
