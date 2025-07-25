@@ -1,4 +1,4 @@
-name: parallel_build
+name: parallel_build_without_archive
 
 # Controls when the workflow will run
 on:
@@ -14,18 +14,30 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       TRIGGER_REPO_NAME: ${{ steps.set-env.outputs.TRIGGER_REPO_NAME }}
+      TRIGGER_COMMIT_ID: ${{ steps.set-env.outputs.TRIGGER_COMMIT_ID }}
       PR_INFO_FILE: ${{ steps.set-env.outputs.PR_INFO_FILE }}
       SNAPSHOT: ${{ steps.set-env.outputs.SNAPSHOT }}
+      CURRENT_ACTION_URL: ${{ steps.set-env.outputs.CURRENT_ACTION_URL }}
+      ALL_PR: ${{ steps.parse-dependencies.outputs.ALL_PR }}
+      DEPENDS_ON: ${{ steps.parse-dependencies.outputs.DEPENDS_ON }}
     steps:
     - name: Set ENV
       id: set-env
+      env:
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_RUN_ID: ${{ github.run_id }}
+        GITHUB_SERVER_URL: ${{ github.server_url }}
       run: |
           echo "TRIGGER_REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_ENV
           echo "TRIGGER_REPO_NAME=$(basename ${{ github.repository }})" >> $GITHUB_OUTPUT
+          echo "TRIGGER_COMMIT_ID=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
+          echo "TRIGGER_COMMIT_ID=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
           echo "PR_INFO_FILE=pr_info_$(basename ${{ github.repository }})_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
           echo "PR_INFO_FILE=pr_info_$(basename ${{ github.repository }})_${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
           echo "SNAPSHOT=snapshot_$(basename ${{ github.repository }})_${{ github.event.pull_request.number }}" >> $GITHUB_ENV
           echo "SNAPSHOT=snapshot_$(basename ${{ github.repository }})_${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "CURRENT_ACTION_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
+          echo "CURRENT_ACTION_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_OUTPUT
 
     - name: Set up Python 3.8
       uses: actions/setup-python@v5
@@ -33,13 +45,8 @@ jobs:
         python-version: 3.8
 
     - name: Get Current Action URL
-      env:
-        GITHUB_REPOSITORY: ${{ github.repository }}
-        GITHUB_RUN_ID: ${{ github.run_id }}
-        GITHUB_SERVER_URL: ${{ github.server_url }}
       run: |
         echo "Current Action URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-        echo "CURRENT_ACTION_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
 
     - name: Parse PR Description for Dependencies
       id: parse-dependencies
@@ -63,7 +70,10 @@ jobs:
           ALL_PR="$manifest_part $without_manifest_pr"
         fi
         echo "ALL_PR=$ALL_PR" >> $GITHUB_ENV
+        echo "ALL_PR=$ALL_PR" >> $GITHUB_OUTPUT
         echo "DEPENDS_ON=$DEPENDS_ON" >> $GITHUB_ENV
+        echo "DEPENDS_ON=$DEPENDS_ON" >> $GITHUB_OUTPUT
+        echo "$TRIGGER_REPO_NAME:$TRIGGER_COMMIT_ID" >> ${{ env.PR_INFO_FILE }}
     
         for DEPENDENCY in $DEPENDS_ON; do
           REPO_NAME=$(echo $DEPENDENCY | awk -F'/pull/' '{print $1}')
@@ -158,39 +168,23 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [group1, group2]  # 定义两个组
+        group: [ubuntu22-01, ubuntu22-02]  # 定义组
         include:
-          - group: group1
-            #tasks: [goldfish-arm64-v8a-ap, goldfish-armeabi-v7a-ap, goldfish-x86_64-ap, stm32h750b-dk:lvgl]  # 第一组任务
-            tasks: [goldfish-x86_64-ap, stm32h750b-dk:lvgl]  # 第一组任务
-          - group: group2
-            #tasks: [goldfish-armeabi-v7a-ap-citest]  # 第二组任务
-            tasks: [goldfish-x86_64-ap, stm32h750b-dk:lvgl]
+          - group: ubuntu22-01
+            tasks: [goldfish-arm64-v8a-ap, goldfish-armeabi-v7a-ap, goldfish-x86_64-ap, stm32h750b-dk:lvgl]  # 第一组任务
+          - group: ubuntu22-02
+            tasks: [goldfish-armeabi-v7a-ap-citest]  # 第二组任务
       fail-fast: false
+    outputs:
+      status: ${{ steps.check.outputs.status }}
+      DEPENDS_ON: ${{ needs.setup.outputs.DEPENDS_ON }}
+      CURRENT_ACTION_URL: ${{ needs.setup.outputs.CURRENT_ACTION_URL }}
     steps:
       - name: Download Snapshot and PR Info
         uses: actions/download-artifact@v4
         with:
           name: source_info
           path: .
-
-       #- name: Clean up disk space
-       #  run: |
-       #    sudo apt-get clean
-       #    sudo rm -rf /var/lib/apt/lists/*
-       #    sudo rm -rf /usr/share/dotnet
-       #    sudo rm -rf /opt/ghc
-       #    sudo rm -rf "/usr/local/share/boost"
-       #    sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-       #    sudo rm -rf /etc/apt/sources.list.d/* /usr/local/lib/android /etc/mysql /etc/php /opt/hostedtoolcache/CodeQL
-       #    sudo docker image prune --all --force
-       #    sudo docker builder prune -a
-       #    sudo docker system prune -af
-       #    sudo -E apt-get -y purge azure-cli* docker* ghc* zulu* hhvm* llvm* firefox* google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* mongodb* moby* snap* || true
-       #    sudo -E apt-get -qq update
-       #    sudo -E apt-get -qq autoremove --purge
-       #    sudo -E apt-get -qq clean
-       #    df -h
 
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
@@ -220,8 +214,8 @@ jobs:
           #~/bin/repo init -u https://github.com/open-vela/manifests -b ${{ github.event.pull_request.base.ref }} -m openvela.xml --depth=1 --git-lfs
           ~/bin/repo init -u https://github.com/open-vela/manifests -b dev -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
           cp ${{ needs.setup.outputs.SNAPSHOT }}  .repo/manifests/
-          echo "~/bin/repo init -m ${{ needs.setup.outputs.SNAPSHOT }}"
-          ~/bin/repo init -m ${{ needs.setup.outputs.SNAPSHOT }}
+          echo "~/bin/repo init -m ${{ needs.setup.outputs.SNAPSHOT }} --group=default,platform-linux --depth=1 --git-lfs"
+          ~/bin/repo init -m ${{ needs.setup.outputs.SNAPSHOT }} --group=default,platform-linux --depth=1 --git-lfs
           echo "REPO_INIT=true" >> $GITHUB_ENV
 
       - name: Repo Sync
@@ -243,9 +237,10 @@ jobs:
           repo_sync_code=0
           fetch_code=0
           cp_code=0
+          code_base_check=0
           fetch_log=$current_path/fetch.log
           cp_log=$current_path/cp.log
-          for DEPENDENCY in ${{ env.ALL_PR }}; do
+          for DEPENDENCY in ${{ needs.setup.outputs.ALL_PR }}; do
             REPO_FULL_PATH=$(echo $DEPENDENCY | awk -F'/pull/' '{print $1}')
             PR_NUMBER=$(echo $DEPENDENCY | awk -F'/pull/' '{print $2}')
             PROJECT_NAME=$(echo $REPO_FULL_PATH | cut -d '/' -f 2)
@@ -259,6 +254,12 @@ jobs:
                 fetch_code=1
               fi
               echo $fetch_pr_result
+              git branch -vv
+              echo "git merge-base -a pr-branch HEAD"
+              common_base_commit=$(git merge-base -a pr-branch HEAD || true)
+              if [ "$common_base_commit"X == ""X ]; then
+                code_base_check=1
+              fi
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
               set +e
               cp_pr_result=$(git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT) >> $cp_log 2>&1)
@@ -273,18 +274,27 @@ jobs:
                 repo_sync_code=1
               fi
             else
-              manifest_content=$(cat .repo/manifests/openvela.xml)
-              echo $manifest_content
-              REPO_PATH=$(cat .repo/manifests/openvela.xml | grep "\"$PROJECT_NAME\"" | awk -F'"' '{print $2}')
-              echo $REPO_PATH
+              manifest_content=$(cat .repo/manifests/${{ needs.setup.outputs.SNAPSHOT }})
+              #echo $manifest_content
+              REPO_PATH=$(cat .repo/manifests/${{ needs.setup.outputs.SNAPSHOT }} | grep "\"$PROJECT_NAME\"" | awk -F'path="' '{print $2}' | awk -F'"' '{print $1}')
+              #echo $REPO_PATH
               cd $REPO_PATH
-              echo "git fetch openvela pull/$PR_NUMBER/head:pr-branch"
-              fetch_pr_result=$(git fetch openvela pull/$PR_NUMBER/head:pr-branch >> $fetch_log 2>&1)
+              git remote add test ${{ github.event.pull_request.base.repo.html_url }}
+              echo "git fetch test pull/$PR_NUMBER/head:pr-branch"
+              fetch_pr_result=$(git fetch test pull/$PR_NUMBER/head:pr-branch >> $fetch_log 2>&1)
+              #echo "git fetch openvela pull/$PR_NUMBER/head:pr-branch"
+              #fetch_pr_result=$(git fetch openvela pull/$PR_NUMBER/head:pr-branch >> $fetch_log 2>&1)
               fetch_pr_code=$?
               if [ $fetch_pr_code -ne 0 ]; then
                 fetch_code=1
               fi
               echo $fetch_pr_result
+              git branch -vv
+              echo "git merge-base -a pr-branch HEAD"
+              common_base_commit=$(git merge-base -a pr-branch HEAD || true)
+              if [ "$common_base_commit"X == ""X ]; then
+                code_base_check=1
+              fi
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
               set +e
               cp_pr_result=$(git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT) >> $cp_log 2>&1)
@@ -299,6 +309,7 @@ jobs:
           echo "REPO_SYNC_CODE=$repo_sync_code" >> $GITHUB_ENV
           echo "FETCH_PR_CODE=$fetch_code" >> $GITHUB_ENV
           echo "CP_PR_CODE=$cp_code" >> $GITHUB_ENV
+          echo "CODE_BASE_CHECK=$code_base_check" >> $GITHUB_ENV
         continue-on-error: true
 
       - name: check cherry-pick pr result
@@ -308,6 +319,10 @@ jobs:
             exit 1
           else
             echo "repo sync after cherry-pick manifest PR success."
+          fi
+          if [ ${{ env.CODE_BASE_CHECK }}X != 0X ]; then
+            echo "PR code base need to rebase with source repo."
+            exit 1
           fi
           if [ ! -n "${{ env.FETCH_PR_CODE }}" ] || ([ ${{ env.FETCH_PR_CODE }}X == 0X ] && [ ${{ env.CP_PR_CODE }}X == 0X ]) ; then
             echo "cherry-pick PR success and continue."
@@ -343,7 +358,7 @@ jobs:
         run: |
           artifacts=[]
           for task in ${{ join(matrix.tasks, ' ') }}; do
-            rm -rf package_back output || true
+            rm -rf output || true
             echo "=== Starting task: $task ==="
             if [[ "$task" == *:* ]]; then
               build_cmd="./build.sh $task -e -Werror -j8"
@@ -359,9 +374,9 @@ jobs:
               /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd && ls -atl nuttx"
 
             echo "=== Backup CI results for $task ==="
-            ci_artifact_name="${{ matrix.group }}_${task}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
+            ci_artifact_name="${{ matrix.group }}/${task}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
             echo $ci_artifact_name
-            mkdir $ci_artifact_name
+            mkdir -p $ci_artifact_name || true
             pwd
             ls -atl .
             if [[ "$task" == *:* ]]; then
@@ -373,79 +388,65 @@ jobs:
             echo "=== Cleaning up after $task ==="
             sudo ~/bin/repo forall -v -c 'git clean -dfx; git reset --hard HEAD'  > /dev/null 2>&1 || true
 
-            # 收集产物信息
-            #artifact_info=$(jq -n \
-            #  --arg task "$task" \
-            #  --arg path "$ci_artifact_name" \
-            #  '{task: $task, path: $path}')
-            artifact_info='{task: $task, path: $ci_artifact_name}'
-            echo $artifact_info
-            artifacts+=("$artifact_info")
+            if [[ "$task" == *-citest ]]; then
+              echo "Run autotest tasks: $task"
+              STANDARD_CONFIG="${task%-citest*}"
+              test_model=${STANDARD_CONFIG//-/_}
+              echo "pytest -m \"common or $test_model\" ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json --maxfail=10"
+              docker run --rm \
+                -v ${{ github.workspace }}:/workspace \
+                -w /workspace \
+                ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+                /bin/bash -c "free -m && df -h && cp $ci_artifact_name/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m \"common or $test_model\" ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json --maxfail=10"
+                /bin/bash -c "ls -atl"
+
+              echo "Check autotest result: $task"
+              cd ${{ github.workspace }}
+              mkdir output
+              cp ./*.log ./autotest.json $ci_artifact_name
+              failed=$(cat autotest.json | jq '.report.summary.failed')
+              if [ "$failed" != "null" ] && [ "$failed" != "0" ]; then
+                echo "autotest failed: $failed"
+                result="failed"
+                exit 1;
+              else
+                echo "autotest passed"
+                result="success"
+              fi
+            fi
           done
 
-          # 构建完整 JSON
-          json_output=$(printf '[%s]' "$(IFS=,; echo "${artifacts[*]}")")
-          echo "$json_output" > artifacts-${{ matrix.group }}.json
+      - name: Archive CI Build Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build_Package_${{ matrix.group }}
+          path: |
+            ${{ matrix.group }}
 
-          # 输出 JSON 文件路径供后续步骤使用
-          echo "ARTIFACTS_JSON=$(pwd)/artifacts-${{ matrix.group }}.json" >> $GITHUB_ENV
-          echo "json_output=$json_output" >> $GITHUB_OUTPUT
-          echo ${{ env.ARTIFACTS_JSON }}
-
-        #- name: Upload artifacts
-        #  uses: actions/upload-artifact@v4
-        #  with:
-        #    name: ${{ matrix.group }}_${{ json_output.task }}
-        #    path: |
-        #      ${{ matrix.group }}_${{ json_output.task }}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}
-
-            #   if [[ "$task" == *-citest ]]; then
-            #     echo "Run autotest tasks: $task"
-            #     STANDARD_CONFIG="${task%-citest*}"
-            #     docker run --rm \
-            #       -v ${{ github.workspace }}:/workspace \
-            #       -w /workspace \
-            #       ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-            #       /bin/bash -c "free -m && df -h && cp package_back/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m 'common or ${{ matrix.task }}' ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json"
-            #       /bin/bash -c "ls -atl"
-
-            #     echo "Check autotest result: $task"
-            #     cd ${{ github.workspace }}
-            #     mkdir output
-            #     cp nuttx/nuttx ./*.log ./autotest.json output
-            #     failed=$(cat autotest.json | jq '.report.summary.failed')
-            #     if [ "$failed" != "null" ] && [ "$failed" != "0" ]; then
-            #       echo "autotest failed: $failed"
-            #       result="failed"
-            #       exit 1;
-            #     else
-            #       echo "autotest passed"
-            #       result="success"
-            #     fi
-            #     echo "::set-output name=AUTOTEST_RESULT::${result}"
-            #   fi
-
-            #   echo "=== Archiving autotest results for $task ==="
-            #   autotest_artifact_name="${{ matrix.group }}_${task}_autotest_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
-            #   # 使用GitHub CLI上传
-            #   gh artifact upload "output/" --name "$autotest_artifact_name" --workflow "$GITHUB_WORKFLOW"
-
+      - name: Check status
+        id: check
+        if: always()
+        run: |
+          echo "status=${{ job.status }}" >> $GITHUB_OUTPUT
 
   # 后置处理作业，用于更新依赖PR状态
   post-processing:
     needs: ci-tasks
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Post Processing
+        env:
+          ci-tasks_status: ${{ needs.ci-tasks.outputs.status }}
         run: |
-          echo "Job status: ${{ job.status }}"
+          echo "Job status: ${{ needs.ci-tasks.outputs.status }}"
 
-          if [[ "${{ job.status }}" == "success" ]]; then
+          if [[ "${{ needs.ci-tasks.outputs.status }}" == "success" ]]; then
             ci_status="success"
           else
             ci_status="failure"
           fi
-          for DEPENDENCY in ${{ env.DEPENDS_ON }}; do
+          for DEPENDENCY in ${{ needs.ci-tasks.outputs.DEPENDS_ON }}; do
             REPO_NAME=$(echo $DEPENDENCY | awk -F'/pull/' '{print $1}')
             PR_NUMBER=$(echo $DEPENDENCY | awk -F'/pull/' '{print $2}')
             PR_COMMITS=$(curl -s -H "Authorization: token ${{ secrets.CI_PAT_ROBOT }}" "https://api.github.com/repos/$REPO_NAME/pulls/$PR_NUMBER")
@@ -463,9 +464,9 @@ jobs:
                 "state": '"\"$ci_status\""',
                 "description": "CI '"$ci_status"'",
                 "context": "CI triggered by other PR",
-                "target_url": "${{ env.CURRENT_ACTION_URL }}"
+                "target_url": "${{ needs.ci-tasks.outputs.CURRENT_ACTION_URL }}"
               }'
-            COMMENT_BODY="CI $ci_status. \n PR list is $ALL_PR.\n CI url: ${{ env.CURRENT_ACTION_URL }}"
+            COMMENT_BODY="CI $ci_status. \n PR list is $ALL_PR.\n CI url: ${{ needs.ci-tasks.outputs.CURRENT_ACTION_URL }}"
             curl -X POST \
               -H "Authorization: token ${{ secrets.CI_PAT_ROBOT }}" \
               -H "Accept: application/vnd.github.v3+json" \
