@@ -320,7 +320,7 @@ jobs:
           else
             echo "repo sync after cherry-pick manifest PR success."
           fi
-          if [ ${{ env.CODE_BASE_CHECK }}X != 0X ]; then
+          if [ -n "${{ env.CODE_BASE_CHECK }}" ] && [ ${{ env.CODE_BASE_CHECK }}X != 0X ]; then
             echo "PR code base need to rebase with source repo."
             exit 1
           fi
