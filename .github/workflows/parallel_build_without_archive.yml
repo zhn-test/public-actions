@@ -375,10 +375,12 @@ jobs:
           for task in ${{ join(matrix.tasks, ' ') }}; do
             rm -rf output || true
             cmake_flag=""
+            cp_base_dir="nuttx"
             echo "=== Starting task: $task ==="
             if [[ "$task" == *@* ]]; then
               cmake_flag="--cmake"
               task=$(echo "$task" | awk -F '@' '{print $1}')
+              cp_base_dir="cmake_out/$task"
             fi
             if [[ "$task" == *:* ]] || [[ "$task" == *vendor/* ]]; then
               build_cmd="./build.sh $task $cmake_flag -e -Werror -j8"
@@ -400,9 +402,9 @@ jobs:
             pwd
             ls -atl .
             if [[ "$task" == *:* ]] || [[ "$task" == *vendor/* ]]; then
-              cp nuttx/nuttx nuttx/.config $ci_artifact_name
+              cp ${cp_base_dir}/nuttx ${cp_base_dir}/.config $ci_artifact_name
             else
-              cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config $ci_artifact_name
+              cp ${cp_base_dir}/nuttx ${cp_base_dir}/vela_*.bin ${cp_base_dir}/.config $ci_artifact_name
             fi
             
             echo "=== Cleaning up after $task ==="
