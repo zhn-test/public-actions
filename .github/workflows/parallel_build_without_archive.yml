@@ -380,7 +380,7 @@ jobs:
             if [[ "$task" == *@* ]]; then
               cmake_flag="--cmake"
               task=$(echo "$task" | awk -F '@' '{print $1}')
-              cp_base_dir="cmake_out/$task"
+              cp_base_dir="cmake_out/*"
             fi
             if [[ "$task" == *:* ]] || [[ "$task" == *vendor/* ]]; then
               build_cmd="./build.sh $task $cmake_flag -e -Werror -j8"
@@ -409,6 +409,7 @@ jobs:
             
             echo "=== Cleaning up after $task ==="
             sudo ~/bin/repo forall -v -c 'git clean -dfx; git reset --hard HEAD'  > /dev/null 2>&1 || true
+            sudo rm -rf cmake_out || true
 
             #if [[ "$task" == *-citest ]]; then
             #  echo "Run autotest tasks: $task"
