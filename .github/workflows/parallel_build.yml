@@ -394,7 +394,7 @@ jobs:
             mkdir -p $ci_artifact_name || true
             pwd
             ls -atl .
-            if [[ "$task" == *:* ]]; then
+            if [[ "$task" == *:* ]] || [[ "$task" == *vendor/* ]]; then
               cp nuttx/nuttx nuttx/.config $ci_artifact_name
             else
               cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config $ci_artifact_name
