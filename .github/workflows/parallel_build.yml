@@ -18,6 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0  # 拉取完整历史，确保能比较分支差异
 
       - name: Get changed files (via git)
@@ -25,7 +26,16 @@ jobs:
         run: |
           # 获取PR基准分支与当前分支的差异文件
           # 注意：github.event.pull_request.base.ref 是目标分支（如main）
-          changed_files=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} HEAD)
+          #changed_files=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} HEAD)
+           # 明确对比PR的目标分支（base）和当前PR分支（head）
+          BASE_BRANCH="origin/${{ github.event.pull_request.base.ref }}"
+          HEAD_BRANCH="HEAD"
+
+          # 获取两个分支之间的所有修改文件
+          echo "Comparing $BASE_BRANCH with $HEAD_BRANCH"
+          changed_files=$(git diff --name-only $BASE_BRANCH $HEAD_BRANCH)
+          echo "changed_files:"
+          echo $changed_files
           
           # 若没有修改文件，视为仅md情况
           if [ -z "$changed_files" ]; then
