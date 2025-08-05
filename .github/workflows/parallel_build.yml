@@ -9,8 +9,55 @@ on:
   workflow_call:
 
 jobs:
+  check-files:
+    runs-on: ubuntu-latest
+    outputs:
+      # 输出一个变量标识是否仅包含.md文件
+      only_md: ${{ steps.filter.outputs.only_md }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 必须获取完整历史才能比较文件
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          # 获取PR中修改的所有文件
+          base_sha: ${{ github.event.pull_request.base.sha }}
+          head_sha: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check if only .md files are changed
+        id: filter
+        run: |
+          # 获取所有修改的文件
+          changed_files="${{ steps.changed-files.outputs.all_changed_files }}"
+
+          # 如果没有修改文件，也视为特殊情况
+          if [ -z "$changed_files" ]; then
+            echo "only_md=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 检查是否所有文件都是.md文件
+          all_md=true
+          while IFS= read -r file; do
+            if [[ "$file" != *.md ]]; then
+              all_md=false
+              break
+            fi
+          done <<< "$changed_files"
+
+          if [ $all_md == "true" ]; then
+            echo "pr files are all .md and will skip CI."
+          fi
+          echo "only_md=$all_md" >> $GITHUB_OUTPUT
+
   # 前置准备作业，负责环境设置和依赖准备
   setup:
+    needs: check-files
+    if: ${{ needs.check-files.outputs.only_md == 'false' }}
     runs-on: ubuntu-latest
     outputs:
       TRIGGER_REPO_NAME: ${{ steps.set-env.outputs.TRIGGER_REPO_NAME }}
