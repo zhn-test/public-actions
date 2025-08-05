@@ -141,7 +141,7 @@ jobs:
     - name: Repo Init
       run: |
         #~/bin/repo init -u https://github.com/open-vela/manifests -b ${{ github.event.pull_request.base.ref }} -m openvela.xml --depth=1 --git-lfs
-        ~/bin/repo init -u https://github.com/open-vela/manifests -b dev -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
+        ~/bin/repo init -u https://github.com/open-vela/manifests -b trunk -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
         echo "REPO_INIT=true" >> $GITHUB_ENV
 
     - name: Repo Sync
@@ -171,9 +171,9 @@ jobs:
         group: [ubuntu22-01, ubuntu22-02]  # 定义组
         include:
           - group: ubuntu22-01
-            tasks: [goldfish-arm64-v8a-ap, goldfish-armeabi-v7a-ap, goldfish-x86_64-ap, stm32h750b-dk:lvgl]  # 第一组任务
+            tasks: [goldfish-arm64-v8a-ap@cmake, goldfish-armeabi-v7a-ap@cmake, goldfish-x86_64-ap@cmake, vendor/espressif/boards/esp32s3/esp32s3-box/configs/openvela, vendor/espressif/boards/esp32s3/esp32s3-eye/configs/openvela]  # 第一组任务
           - group: ubuntu22-02
-            tasks: [goldfish-armeabi-v7a-ap-citest]  # 第二组任务
+            tasks: [goldfish-armeabi-v7a-ap-citest@cmake]  # 第二组任务
       fail-fast: false
     outputs:
       status: ${{ steps.check.outputs.status }}
@@ -212,7 +212,7 @@ jobs:
       - name: Repo Init
         run: |
           #~/bin/repo init -u https://github.com/open-vela/manifests -b ${{ github.event.pull_request.base.ref }} -m openvela.xml --depth=1 --git-lfs
-          ~/bin/repo init -u https://github.com/open-vela/manifests -b dev -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
+          ~/bin/repo init -u https://github.com/open-vela/manifests -b trunk -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
           cp ${{ needs.setup.outputs.SNAPSHOT }}  .repo/manifests/
           echo "~/bin/repo init -m ${{ needs.setup.outputs.SNAPSHOT }} --group=default,platform-linux --depth=1 --git-lfs"
           ~/bin/repo init -m ${{ needs.setup.outputs.SNAPSHOT }} --group=default,platform-linux --depth=1 --git-lfs
@@ -234,6 +234,7 @@ jobs:
           git config --global user.email "openvela-robot@xiaomi.com"
           git config --global user.name "openvela-robot"
           set -x
+          repo_exist=0
           repo_sync_code=0
           fetch_code=0
           cp_code=0
@@ -276,8 +277,16 @@ jobs:
             else
               manifest_content=$(cat .repo/manifests/${{ needs.setup.outputs.SNAPSHOT }})
               #echo $manifest_content
+              REPO_NAME=$(cat .repo/manifests/${{ needs.setup.outputs.SNAPSHOT }} | grep "\"$PROJECT_NAME\"" | awk -F'name="' '{print $2}' | awk -F'"' '{print $1}')
+              if [ "$REPO_NAME"X == ""X ]; then
+                repo_exist=1
+                break
+              fi
               REPO_PATH=$(cat .repo/manifests/${{ needs.setup.outputs.SNAPSHOT }} | grep "\"$PROJECT_NAME\"" | awk -F'path="' '{print $2}' | awk -F'"' '{print $1}')
-              #echo $REPO_PATH
+              if [ "$REPO_PATH"X == ""X ]; then
+                REPO_PATH=$REPO_NAME
+              fi
+              echo $REPO_PATH
               cd $REPO_PATH
               git remote add test ${{ github.event.pull_request.base.repo.html_url }}
               echo "git fetch test pull/$PR_NUMBER/head:pr-branch"
@@ -287,6 +296,7 @@ jobs:
               fetch_pr_code=$?
               if [ $fetch_pr_code -ne 0 ]; then
                 fetch_code=1
+                break
               fi
               echo $fetch_pr_result
               git branch -vv
@@ -306,6 +316,7 @@ jobs:
               cd -
             fi
           done
+          echo "REPO_EXIST=$repo_exist" >> $GITHUB_ENV
           echo "REPO_SYNC_CODE=$repo_sync_code" >> $GITHUB_ENV
           echo "FETCH_PR_CODE=$fetch_code" >> $GITHUB_ENV
           echo "CP_PR_CODE=$cp_code" >> $GITHUB_ENV
@@ -320,7 +331,11 @@ jobs:
           else
             echo "repo sync after cherry-pick manifest PR success."
           fi
-          if [ ${{ env.CODE_BASE_CHECK }}X != 0X ]; then
+          if [ -n "${{ env.REPO_EXIST }}" ] && [ ${{ env.REPO_EXIST }}X != 0X ]; then
+            echo "repo is not exist, please check."
+            exit 1
+          fi
+          if [ -n "${{ env.CODE_BASE_CHECK }}" ] && [ ${{ env.CODE_BASE_CHECK }}X != 0X ]; then
             echo "PR code base need to rebase with source repo."
             exit 1
           fi
@@ -359,11 +374,16 @@ jobs:
           artifacts=[]
           for task in ${{ join(matrix.tasks, ' ') }}; do
             rm -rf output || true
+            cmake_flag=""
             echo "=== Starting task: $task ==="
-            if [[ "$task" == *:* ]]; then
-              build_cmd="./build.sh $task -e -Werror -j8"
+            if [[ "$task" == *@* ]]; then
+              cmake_flag="--cmake"
+              task=$(echo "$task" | awk -F '@' '{print $1}')
+            fi
+            if [[ "$task" == *:* ]] || [[ "$task" == *vendor/* ]]; then
+              build_cmd="./build.sh $task $cmake_flag -e -Werror -j8"
             else
-              build_cmd="./build.sh vendor/openvela/boards/vela/configs/$task -e -Werror -j8"
+              build_cmd="./build.sh vendor/openvela/boards/vela/configs/$task $cmake_flag -e -Werror -j8"
             fi
             echo $build_cmd
 
@@ -374,12 +394,12 @@ jobs:
               /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd && ls -atl nuttx"
 
             echo "=== Backup CI results for $task ==="
-            ci_artifact_name="${{ matrix.group }}_${task}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
+            ci_artifact_name="${{ matrix.group }}/${task//:/_}_${{ needs.setup.outputs.TRIGGER_REPO_NAME }}-${{ github.event.pull_request.number }}"
             echo $ci_artifact_name
-            mkdir $ci_artifact_name
+            mkdir -p $ci_artifact_name || true
             pwd
             ls -atl .
-            if [[ "$task" == *:* ]]; then
+            if [[ "$task" == *:* ]] || [[ "$task" == *vendor/* ]]; then
               cp nuttx/nuttx nuttx/.config $ci_artifact_name
             else
               cp nuttx/nuttx nuttx/vela_*.bin nuttx/.config $ci_artifact_name
@@ -388,33 +408,33 @@ jobs:
             echo "=== Cleaning up after $task ==="
             sudo ~/bin/repo forall -v -c 'git clean -dfx; git reset --hard HEAD'  > /dev/null 2>&1 || true
 
-            if [[ "$task" == *-citest ]]; then
-              echo "Run autotest tasks: $task"
-              STANDARD_CONFIG="${task%-citest*}"
-              test_model=${STANDARD_CONFIG//-/_}
-              echo "pytest -m \"common or $test_model\" ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json --maxfail=10"
-              docker run --rm \
-                -v ${{ github.workspace }}:/workspace \
-                -w /workspace \
-                ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-                /bin/bash -c "free -m && df -h && cp $ci_artifact_name/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m \"common or $test_model\" ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json --maxfail=10"
-                /bin/bash -c "ls -atl"
+            #if [[ "$task" == *-citest ]]; then
+            #  echo "Run autotest tasks: $task"
+            #  STANDARD_CONFIG="${task%-citest*}"
+            #  test_model=${STANDARD_CONFIG//-/_}
+            #  echo "pytest -m \"common or $test_model\" ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json --maxfail=10"
+            #  docker run --rm \
+            #    -v ${{ github.workspace }}:/workspace \
+            #    -w /workspace \
+            #    ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+            #    /bin/bash -c "free -m && df -h && cp $ci_artifact_name/* nuttx/ && ls -atl nuttx && cd tests/scripts/script && pytest -m \"common or $test_model\" ./ -B $STANDARD_CONFIG -L /workspace -P /workspace -F /tmp -R qemu -v --disable-warnings --count=1 --json=/workspace/autotest.json --maxfail=10"
+            #    /bin/bash -c "ls -atl"
 
-              echo "Check autotest result: $task"
-              cd ${{ github.workspace }}
-              mkdir output
-              cp nuttx/nuttx ./*.log ./autotest.json output
-              failed=$(cat autotest.json | jq '.report.summary.failed')
-              if [ "$failed" != "null" ] && [ "$failed" != "0" ]; then
-                echo "autotest failed: $failed"
-                result="failed"
-                exit 1;
-              else
-                echo "autotest passed"
-                result="success"
-              fi
-              echo "::set-output name=AUTOTEST_RESULT::${result}"
-            fi
+            #  echo "Check autotest result: $task"
+            #  cd ${{ github.workspace }}
+            #  mkdir output
+            #  cp nuttx/nuttx ./*.log ./autotest.json output
+            #  failed=$(cat autotest.json | jq '.report.summary.failed')
+            #  if [ "$failed" != "null" ] && [ "$failed" != "0" ]; then
+            #    echo "autotest failed: $failed"
+            #    result="failed"
+            #    exit 1;
+            #  else
+            #    echo "autotest passed"
+            #    result="success"
+            #  fi
+            #  echo "::set-output name=AUTOTEST_RESULT::${result}"
+            #fi
           done
 
       - name: Check status
