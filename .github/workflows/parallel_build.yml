@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       # 输出一个变量标识是否仅包含.md文件
-      only_md: ${{ steps.filter.outputs.only_md }}
+      only_md: ${{ steps.check.outputs.only_md }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0  # 拉取完整历史，确保能比较分支差异
 
-      - name: Get changed files (via git)
+      - name: Get changed files
         id: check
         run: |
           # 获取PR基准分支与当前分支的差异文件
