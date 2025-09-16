@@ -109,9 +109,9 @@ jobs:
         echo 'export PATH=~/bin:$PATH' >> $HOME/.bashrc
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
-        git config --global credential.helper store
-        echo "https://${{ secrets.CI_PAT_ROBOT }}:@github.com" > ~/.git-credentials
         git config --global --unset credential.helper
+        git config --global credential.helper store
+        echo "https://${{ github.token }}:@github.com" > ~/.git-credentials
         git clone https://github.com/open-vela/prebuilts_emulator_linux-x86_64.git -b dev
         echo "+++++++++++++++++++++"
         git clone git@github.com:open-vela/prebuilts_emulator_linux-x86_64.git -b dev
