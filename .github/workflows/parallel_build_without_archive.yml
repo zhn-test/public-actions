@@ -151,7 +151,10 @@ jobs:
         echo "REPO_INIT=true" >> $GITHUB_ENV
 
     - name: Repo Sync
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         df -h
         git lfs env
         ~/bin/repo --trace sync -c -d --no-tags -j12
