@@ -114,7 +114,6 @@ jobs:
         git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         git clone https://github.com/open-vela/prebuilts_emulator_linux-x86_64.git -b dev
         echo "+++++++++++++++++++++"
-        git clone git@github.com:open-vela/prebuilts_emulator_linux-x86_64.git -b dev
     
     - name: Clean up disk space
       run: |
