@@ -147,6 +147,7 @@ jobs:
     - name: Repo Sync
       run: |
         df -h
+        git lfs env
         ~/bin/repo --trace sync -c -d --no-tags -j12
         df -h
         pwd && ls -atl .
