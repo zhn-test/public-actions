@@ -110,8 +110,8 @@ jobs:
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
         git clone https://github.com/open-vela/prebuilts_emulator_linux-x86_64.git -b dev
-        cd prebuilts_emulator_linux-x86_64 
-        git lfs ls-files
+        echo "+++++++++++++++++++++"
+        git clone git@github.com:open-vela/prebuilts_emulator_linux-x86_64.git -b dev
     
     - name: Clean up disk space
       run: |
