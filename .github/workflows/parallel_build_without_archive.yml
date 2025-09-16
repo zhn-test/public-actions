@@ -104,6 +104,8 @@ jobs:
         done
   
     - name: Download and install repo
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         mkdir ~/bin
         echo 'export PATH=~/bin:$PATH' >> $HOME/.bashrc
