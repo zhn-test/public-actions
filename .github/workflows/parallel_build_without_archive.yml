@@ -340,6 +340,10 @@ jobs:
 
       - name: check cherry-pick pr result
         run: |
+          ls -atl ${{ env.REPO_ROOT }}/fetch.log
+          ls -atl ${{ env.REPO_ROOT }}/cp.log
+          cat ${{ env.REPO_ROOT }}/fetch.log
+          cat ${{ env.REPO_ROOT }}/cp.log
           if [ -n "${{ env.REPO_SYNC_CODE }}" ] && [ ${{ env.REPO_SYNC_CODE }} != 0 ]; then
             echo "repo sync after cherry-pick manifest PR failed."
             exit 1
