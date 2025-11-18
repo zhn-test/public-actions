@@ -284,7 +284,7 @@ jobs:
           echo $(ls -atl)
           git config --global user.email "openvela-robot@xiaomi.com"
           git config --global user.name "openvela-robot"
-          #set -x
+          set -x
           repo_exist=0
           repo_sync_code=0
           fetch_code=0
@@ -317,7 +317,7 @@ jobs:
                 code_base_check=1
               fi
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
-              #set +e
+              set +e
               cp_pr_result=$(git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT) >> $cp_log 2>&1)
               cp_pr_code=$?
               if [ $cp_pr_code -ne 0 ]; then
@@ -361,7 +361,7 @@ jobs:
                 code_base_check=1
               fi
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
-              #set +e
+              set +e
               cp_pr_result=$(git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT) >> $cp_log 2>&1)
               cp_pr_code=$?
               if [ $cp_pr_code -ne 0 ]; then
