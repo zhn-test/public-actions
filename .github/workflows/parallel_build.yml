@@ -308,6 +308,7 @@ jobs:
               fetch_pr_code=$?
               if [ $fetch_pr_code -ne 0 ]; then
                 fetch_code=1
+                break
               fi
               echo $fetch_pr_result
               git branch -vv
@@ -315,6 +316,7 @@ jobs:
               common_base_commit=$(git merge-base -a pr-branch HEAD || true)
               if [ "$common_base_commit"X == ""X ]; then
                 code_base_check=1
+                break
               fi
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
               set +e
@@ -322,12 +324,14 @@ jobs:
               cp_pr_code=$?
               if [ $cp_pr_code -ne 0 ]; then
                 cp_code=1
+                break
               fi
               echo $cp_pr_result
               cd -                                                                                                                                                  
               ~/bin/repo sync -c -d --no-tags -j12
               if [ $? -ne 0 ]; then
                 repo_sync_code=1
+                break
               fi
             else
               manifest_content=$(cat .repo/manifests/${{ needs.setup.outputs.SNAPSHOT }})
@@ -359,6 +363,7 @@ jobs:
               common_base_commit=$(git merge-base -a pr-branch HEAD || true)
               if [ "$common_base_commit"X == ""X ]; then
                 code_base_check=1
+                break
               fi
               echo "git cherry-pick $(git rev-list --reverse HEAD..$PR_COMMIT)"
               set +e
@@ -366,6 +371,7 @@ jobs:
               cp_pr_code=$?
               if [ $cp_pr_code -ne 0 ]; then
                 cp_code=1
+                break
               fi
               echo $cp_pr_result
               cd -
