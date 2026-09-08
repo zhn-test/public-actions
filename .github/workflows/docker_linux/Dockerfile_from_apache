@@ -18,7 +18,8 @@ RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y -qq \
     git-lfs \
     dosfstools \
     mtools \
-    libc++abi1
+    libc++abi1 \
+    srecord
 # arch/sim links -lunwind unconditionally, and NTFC creates a virtualenv;
 # the base image carries only the libunwind8 runtime and a Python without
 # ensurepip. Both architectures for libunwind: seven sim configs set
