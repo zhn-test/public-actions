@@ -15,7 +15,20 @@ RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y -qq \
     python3-pip \
     curl \
     jq \
-    git-lfs
+    git-lfs \
+    dosfstools \
+    mtools \
+    libc++abi1
+# arch/sim links -lunwind unconditionally, and NTFC creates a virtualenv;
+# the base image carries only the libunwind8 runtime and a Python without
+# ensurepip. Both architectures for libunwind: seven sim configs set
+# CONFIG_SIM_M32, and the package is Multi-Arch: same.
+RUN dpkg --print-foreign-architectures | grep -q i386 || dpkg --add-architecture i386
+RUN apt-get update
+RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y -qq \
+    libunwind-dev \
+    libunwind-dev:i386 \
+    python3-venv
 RUN git lfs install
 RUN git lfs --version
 RUN pip3 install matplotlib==3.6.2
