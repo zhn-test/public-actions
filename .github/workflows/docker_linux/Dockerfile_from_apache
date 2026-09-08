@@ -1,4 +1,5 @@
-# 使用 Apache NuttX 的 Docker 镜像作为基础镜像
+# Use Apache NuttX's Docker image as the base image, matching the trunk copy
+# of open-vela/public-actions' Dockerfile_from_apache-nuttx.
 FROM ghcr.io/apache/nuttx/apache-nuttx-ci-linux
 
 # 更新包列表并安装 Open Vela Dockerfile 中独有的工具
