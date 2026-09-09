@@ -511,8 +511,12 @@ jobs:
             fi
             echo $build_cmd
 
-            # DEBUG: no real build. ntfc fails, the other group succeeds, so the
-            # aggregated ci-tasks result and post-processing can be observed.
+            # DEBUG: no real build. The ntfc task writes diagnostics the way the
+            # board run.sh does, then fails, so it can be checked whether the
+            # artifact upload still happens.
+            ci_artifact_name="${CI_MATRIX_GROUP}/${task//:/_}_${CI_TRIGGER_REPO}-${CI_PR_NUMBER}"
+            mkdir -p "$ci_artifact_name/ntfc/result"
+            echo "console capture for $task" > "$ci_artifact_name/ntfc/result/console.log"
             if [ "$run_ntfc" -eq 1 ]; then
               echo "DEBUG: forcing a failure for the ntfc task $task"
               exit 1
@@ -522,7 +526,7 @@ jobs:
           done
 
       - name: Archive CI Build Package
-        if: false
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: Build_Package_${{ matrix.group }}
