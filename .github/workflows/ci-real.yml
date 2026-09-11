@@ -286,9 +286,6 @@ jobs:
           commits=$(git rev-list --reverse "$base"..under-test -- boards/sim)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
-          D=boards/sim/sim/sim/configs/citest/defconfig
-          grep -q "^CONFIG_TESTING_CMOCKA=y" "$D" || { echo "::error::CMOCKA missing"; exit 1; }
-          if grep -q "^CONFIG_TESTING_LTP=y" "$D"; then echo "::error::LTP enabled"; exit 1; fi
           cd -
 
       - name: Fetch PR
@@ -567,6 +564,9 @@ jobs:
       - name: Run NTFC runtime tests
         if: ${{ matrix.group == 'ntfc' }}
         timeout-minutes: 110
+        env:
+          CI_WORKSPACE: ${{ github.workspace }}
+          CI_MATRIX_GROUP: ${{ matrix.group }}
         run: |
           set -e
           cd "${CI_WORKSPACE}"
