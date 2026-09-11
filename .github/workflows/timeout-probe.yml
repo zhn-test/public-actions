@@ -1,0 +1,59 @@
+name: timeout probe
+
+on:
+  push:
+    branches: [ci/timeout-probe]
+
+jobs:
+  # Does a job-level timeout leave the artifact step a chance to run?
+  job_timeout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Produce a package directory
+        run: |
+          mkdir -p ntfc
+          echo payload > ntfc/payload.txt
+      - name: Exceed the job timeout
+        run: sleep 150
+      - name: Archive CI Build Package
+        if: ${{ success() || (!cancelled() && matrix.group == 'ntfc') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build_Package_job_timeout
+          path: |
+            ntfc
+
+  # Same, but the timeout is on the step instead of the job.
+  step_timeout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Produce a package directory
+        run: |
+          mkdir -p ntfc
+          echo payload > ntfc/payload.txt
+      - name: Exceed a step timeout
+        timeout-minutes: 1
+        run: sleep 150
+      - name: Archive CI Build Package
+        if: ${{ success() || !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build_Package_step_timeout
+          path: |
+            ntfc
+
+  # Is a matrix-specific job timeout expression honoured at job level?
+  matrix_timeout:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [ntfc, goldfish]
+    timeout-minutes: ${{ matrix.group == 'ntfc' && 7 || 3 }}
+    steps:
+      - name: Report the effective timeout
+        run: |
+          echo "group=${{ matrix.group }}"
+          echo "expression evaluated to: ${{ matrix.group == 'ntfc' && 7 || 3 }}"
