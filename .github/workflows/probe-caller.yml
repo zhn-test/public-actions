@@ -1,0 +1,16 @@
+name: probe caller
+
+on:
+  push:
+    branches: [ci/name-probe]
+
+jobs:
+  # No display name: the check prefix should fall back to the job id.
+  plain_job_id:
+    uses: zhn-test/public-actions/.github/workflows/probe-called.yml@ci/name-probe
+
+  # Display name set: if the prefix uses it, this yields "ci_dev / setup"
+  # even though the job id is different.
+  renamed_job:
+    name: ci_dev
+    uses: zhn-test/public-actions/.github/workflows/probe-called.yml@ci/name-probe

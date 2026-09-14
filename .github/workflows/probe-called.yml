@@ -1,0 +1,15 @@
+name: probe called
+
+on:
+  workflow_call:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "called workflow job id is setup"
+  post-processing:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - run: echo "called workflow job id is post-processing"
