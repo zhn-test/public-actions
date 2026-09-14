@@ -598,6 +598,7 @@ jobs:
 
       # run.sh only moves its results after ntfc test returns, so a step
       # timeout leaves them in nuttx/result, outside the uploaded directory.
+      # They belong to root, having been written from inside the container.
       - name: Collect NTFC results left behind by a timeout
         if: ${{ failure() && matrix.group == 'ntfc' }}
         env:
@@ -609,7 +610,8 @@ jobs:
             exit 0
           fi
           mkdir -p "${NTFC_ARTIFACT}/ntfc"
-          mv nuttx/result "${NTFC_ARTIFACT}/ntfc/"
+          sudo mv nuttx/result "${NTFC_ARTIFACT}/ntfc/"
+          sudo chown -R "$(id -u):$(id -g)" "${NTFC_ARTIFACT}/ntfc"
           echo "recovered $(find "${NTFC_ARTIFACT}/ntfc" -type f | wc -l) file(s)"
 
       - name: Where did the NTFC results land
@@ -617,11 +619,11 @@ jobs:
         run: |
           cd "${{ github.workspace }}"
           echo "=== nuttx/result (should be gone after the collector) ==="
-          ls -la nuttx/result 2>/dev/null | head -5 || echo "  absent"
+          ls -la nuttx/result 2>/dev/null | head -3 || echo "  absent"
           echo "=== console captures inside the upload path ==="
           find "${{ matrix.group }}" -name '*.console.txt' 2>/dev/null | wc -l
-          echo "=== upload path tree (first 12) ==="
-          find "${{ matrix.group }}" -type f 2>/dev/null | head -12
+          echo "=== upload path tree (first 10) ==="
+          find "${{ matrix.group }}" -type f 2>/dev/null | head -10
 
       # Unchanged for the other groups: upload on success only. ntfc also
       # uploads on failure, which is when its diagnostics are needed.
