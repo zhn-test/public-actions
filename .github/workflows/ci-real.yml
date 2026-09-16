@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-003-probe]
+    branches: [ci/ntfc-multiboard-probe]
   # reusable
   workflow_call:
 
@@ -213,18 +213,33 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     # Only the ntfc group is bounded here; the others keep GitHub's 360 default.
-    timeout-minutes: ${{ matrix.group == 'ntfc' && 180 || 360 }}
+    timeout-minutes: ${{ startsWith(matrix.group, 'ntfc') && 180 || 360 }}
     env:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc]  # grouped by vendor / platform
+        group: [ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
         include:
-          # Runtime-test group. "ntfc" in the suffix runs the NuttX Test
-          # Framework for Community on the build output.
-          - group: ntfc
+          # One group per NTFC configuration: the runtime step carries a single
+          # NTFC_TASK, and separate groups also give per-platform pass/fail.
+          - group: ntfc-sim
             tasks:
               - sim:citest@cmake@ntfc
+          - group: ntfc-rv32
+            tasks:
+              - rv-virt:citest@cmake@ntfc
+          - group: ntfc-rv64
+            tasks:
+              - rv-virt:citest64@cmake@ntfc
+          - group: ntfc-sabre
+            tasks:
+              - sabre-6quad:citest@cmake@ntfc
+          - group: ntfc-armv8a
+            tasks:
+              - qemu-armv8a:citest@cmake@ntfc
+          - group: ntfc-armv8a-smp
+            tasks:
+              - qemu-armv8a:citest_smp@cmake@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
@@ -271,14 +286,14 @@ jobs:
           df -h
           pwd && ls -atl .
 
-      - name: Apply nuttx#346 under test
+      - name: Apply the nuttx board metadata under test
         run: |
           set -x
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/sim-citest-ntfc:under-test
+            ci/ntfc-multiboard:under-test
           base=$(git merge-base HEAD under-test)
-          commits=$(git rev-list --reverse "$base"..under-test -- boards/sim)
+          commits=$(git rev-list --reverse "$base"..under-test -- boards)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
           cd -
@@ -552,7 +567,7 @@ jobs:
       # collection and upload below stay reachable. A job timeout is reported as
       # cancelled, under which the Archive condition evaluates false.
       - name: Run NTFC runtime tests
-        if: ${{ matrix.group == 'ntfc' }}
+        if: ${{ startsWith(matrix.group, 'ntfc') }}
         timeout-minutes: 130
         env:
           CI_WORKSPACE: ${{ github.workspace }}
@@ -595,14 +610,16 @@ jobs:
               git clone --depth=1 --branch release-0.0.2 \
                 https://github.com/apache/nuttx-ntfc-testing.git \
                 /workspace/.ntfc/external/nuttx-testing && \
-              cp -a ${ci_artifact_name}/. nuttx/ && ls -atl nuttx/nuttx nuttx/.config && \
+              cp -a ${ci_artifact_name}/. nuttx/ && \
+              mkdir -p nuttx/build && cp -a ${ci_artifact_name}/. nuttx/build/ && \
+              ls -atl nuttx/nuttx nuttx/.config && \
               bash /workspace/${ntfc_cfgdir}/run.sh"
           echo "NTFC runtime test passed: $task"
 
       # Probe only: records exactly what the collector is about to see, so the
       # branch where neither leftover exists is provably the one exercised.
       - name: Probe state before the collector
-        if: ${{ always() && matrix.group == 'ntfc' }}
+        if: ${{ always() && startsWith(matrix.group, 'ntfc') }}
         run: |
           cd "${{ github.workspace }}"
           for p in nuttx/result nuttx/pytest.debug.log; do
@@ -619,7 +636,7 @@ jobs:
       # run to completion it has already moved result and deleted
       # pytest.debug.log itself, so there is nothing left to find.
       - name: Collect NTFC diagnostics
-        if: ${{ always() && matrix.group == 'ntfc' }}
+        if: ${{ always() && startsWith(matrix.group, 'ntfc') }}
         env:
           CI_WORKSPACE: ${{ github.workspace }}
           NTFC_CONTAINER: ntfc-${{ github.run_id }}-${{ github.run_attempt }}
@@ -635,7 +652,7 @@ jobs:
           echo "collected $(find "$dest" -type f | wc -l) file(s)"
 
       - name: Inspect what the collector produced
-        if: ${{ always() && matrix.group == 'ntfc' }}
+        if: ${{ always() && startsWith(matrix.group, 'ntfc') }}
         run: |
           cd "${{ github.workspace }}"
           echo "=== leftovers in nuttx (should be gone) ==="
@@ -651,7 +668,7 @@ jobs:
       # Unchanged for the other groups: upload on success only. ntfc also
       # uploads on failure, which is when its diagnostics are needed.
       - name: Archive CI Build Package
-        if: ${{ success() || (!cancelled() && matrix.group == 'ntfc') }}
+        if: ${{ success() || (!cancelled() && startsWith(matrix.group, 'ntfc')) }}
         uses: actions/upload-artifact@v4
         with:
           name: Build_Package_${{ matrix.group }}
