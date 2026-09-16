@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-multiboard-probe]
+    branches: [ci/ntfc-tmpfs-probe]
   # reusable
   workflow_call:
 
@@ -218,7 +218,7 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
+        group: [ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
         include:
           # One group per NTFC configuration: the runtime step carries a single
           # NTFC_TASK, and separate groups also give per-platform pass/fail.
@@ -291,7 +291,7 @@ jobs:
           set -x
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-multiboard:under-test
+            ci/ntfc-multiboard-tmpfs:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
