@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/timeout-collect]
+    branches: [ci/collector-success-probe]
   # reusable
   workflow_call:
 
@@ -548,11 +548,12 @@ jobs:
             fi
           done
 
-      # Own step, own timeout: a step timeout fails the step, while a job
-      # timeout cancels the job and would skip the collection and upload below.
+      # Own step, own timeout: a step timeout is an ordinary step failure, so the
+      # collection and upload below stay reachable. A job timeout is reported as
+      # cancelled, under which the Archive condition evaluates false.
       - name: Run NTFC runtime tests
         if: ${{ matrix.group == 'ntfc' }}
-        timeout-minutes: 4
+        timeout-minutes: 130
         env:
           CI_WORKSPACE: ${{ github.workspace }}
           CI_MATRIX_GROUP: ${{ matrix.group }}
@@ -598,10 +599,25 @@ jobs:
               bash /workspace/${ntfc_cfgdir}/run.sh"
           echo "NTFC runtime test passed: $task"
 
+      # Probe only: records exactly what the collector is about to see, so the
+      # branch where neither leftover exists is provably the one exercised.
+      - name: Probe state before the collector
+        if: ${{ always() && matrix.group == 'ntfc' }}
+        run: |
+          cd "${{ github.workspace }}"
+          for p in nuttx/result nuttx/pytest.debug.log; do
+            if [ -e "$p" ]; then echo "PRESENT $p"; else echo "ABSENT  $p"; fi
+          done
+          echo "=== artifact dir before the collector ==="
+          find "${{ matrix.group }}" -maxdepth 3 | head -30
+          echo "=== ntfc containers still around ==="
+          docker ps -a --filter "name=ntfc-" --format '  {{.Names}} {{.Status}}' || true
+
       # run.sh only moves its results after ntfc test returns, so a timeout
       # leaves them in nuttx/, outside the uploaded directory. Runs on any
-      # outcome so the named container is always removed; on success run.sh has
-      # already moved everything and there is nothing left to find.
+      # outcome so the named container is always removed. Whenever run.sh did
+      # run to completion it has already moved result and deleted
+      # pytest.debug.log itself, so there is nothing left to find.
       - name: Collect NTFC diagnostics
         if: ${{ always() && matrix.group == 'ntfc' }}
         env:
