@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/collector-success-probe]
+    branches: [ci/ntfc-003-probe]
   # reusable
   workflow_call:
 
@@ -589,10 +589,10 @@ jobs:
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
             /bin/bash -c "set -e && python3 --version && \
               python3 -m venv /workspace/.ntfc-venv && \
-              /workspace/.ntfc-venv/bin/pip install --quiet ntfc==0.0.1 pytest==9.1.1 && \
+              /workspace/.ntfc-venv/bin/pip install --quiet ntfc==0.0.3 pytest==9.1.1 && \
               export PATH=/workspace/.ntfc-venv/bin:\$PATH && ntfc --help > /dev/null && \
               rm -rf /workspace/.ntfc && mkdir -p /workspace/.ntfc/external && \
-              git clone --depth=1 --branch release-0.0.1 \
+              git clone --depth=1 --branch release-0.0.2 \
                 https://github.com/apache/nuttx-ntfc-testing.git \
                 /workspace/.ntfc/external/nuttx-testing && \
               cp -a ${ci_artifact_name}/. nuttx/ && ls -atl nuttx/nuttx nuttx/.config && \
