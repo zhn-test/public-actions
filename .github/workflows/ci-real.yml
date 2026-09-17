@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-fixes2-probe]
+    branches: [ci/ntfc-apache-flow-probe]
   # reusable
   workflow_call:
 
@@ -224,7 +224,7 @@ jobs:
           # NTFC_TASK, and separate groups also give per-platform pass/fail.
           - group: ntfc-sim
             tasks:
-              - sim:citest@cmake@ntfc
+              - sim:citest@ntfc
           - group: ntfc-rv32
             tasks:
               - rv-virt:citest@ntfc
@@ -233,7 +233,7 @@ jobs:
               - rv-virt:citest64@ntfc
           - group: ntfc-sabre
             tasks:
-              - sabre-6quad:citest@cmake@ntfc
+              - sabre-6quad:citest@ntfc
           - group: ntfc-armv8a
             tasks:
               - qemu-armv8a:citest@cmake@ntfc
