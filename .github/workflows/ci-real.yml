@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-multiboard-probe]
+    branches: [ci/ntfc-fixes-probe]
   # reusable
   workflow_call:
 
@@ -227,13 +227,13 @@ jobs:
               - sim:citest@cmake@ntfc
           - group: ntfc-rv32
             tasks:
-              - rv-virt:citest@cmake@ntfc
+              - rv-virt:citest@ntfc
           - group: ntfc-rv64
             tasks:
-              - rv-virt:citest64@cmake@ntfc
+              - rv-virt:citest64@ntfc
           - group: ntfc-sabre
             tasks:
-              - sabre-6quad:citest@cmake@ntfc
+              - sabre-6quad:citest@ntfc
           - group: ntfc-armv8a
             tasks:
               - qemu-armv8a:citest@cmake@ntfc
@@ -291,7 +291,7 @@ jobs:
           set -x
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-multiboard:under-test
+            ci/ntfc-fixes:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
@@ -489,9 +489,11 @@ jobs:
             run_ntfc=0
             echo "=== Starting task: $task ==="
             if [[ "$task" == *@* ]]; then
-              cmake_flag="--cmake"
               task_flags="${task#*@}"
               task=$(echo "$task" | awk -F '@' '{print $1}')
+            fi
+            if [[ "@${task_flags}@" == *"@cmake@"* ]]; then
+              cmake_flag="--cmake"
               cp_base_dir="cmake_out/*"
             fi
             if [[ "@${task_flags}@" == *"@ntfc@"* ]]; then
