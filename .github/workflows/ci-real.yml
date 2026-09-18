@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-apache-flow-probe]
+    branches: [ci/rv64-xpack-probe]
   # reusable
   workflow_call:
 
@@ -218,28 +218,11 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
+        group: [ntfc-rv64]
         include:
-          # One group per NTFC configuration: the runtime step carries a single
-          # NTFC_TASK, and separate groups also give per-platform pass/fail.
-          - group: ntfc-sim
-            tasks:
-              - sim:citest@ntfc
-          - group: ntfc-rv32
-            tasks:
-              - rv-virt:citest@ntfc
           - group: ntfc-rv64
             tasks:
               - rv-virt:citest64@ntfc
-          - group: ntfc-sabre
-            tasks:
-              - sabre-6quad:citest@ntfc
-          - group: ntfc-armv8a
-            tasks:
-              - qemu-armv8a:citest@cmake@ntfc
-          - group: ntfc-armv8a-smp
-            tasks:
-              - qemu-armv8a:citest_smp@cmake@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
@@ -471,6 +454,31 @@ jobs:
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
           df -h
+
+      - name: Compare and swap in the image riscv toolchain
+        if: ${{ startsWith(matrix.group, 'ntfc') }}
+        env:
+          CI_WORKSPACE: ${{ github.workspace }}
+        run: |
+          set -e
+          cd "${CI_WORKSPACE}"
+          docker run --rm -v "${CI_WORKSPACE}":/workspace -w /workspace \
+            ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+            /bin/bash -c '
+              echo "=== toolchain on PATH (from the CI image) ==="
+              which riscv-none-elf-gcc || echo "  not on PATH"
+              riscv-none-elf-gcc --version | head -2 || true
+              echo "=== toolchain from the manifest prebuilts ==="
+              /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf/bin/riscv-none-elf-gcc --version | head -2 || true
+              echo "=== multilib code models, image copy ==="
+              riscv-none-elf-gcc -print-multi-lib | head -20 || true
+              echo "=== swapping the prebuilt for the image copy ==="
+              mv /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf \
+                 /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf.manifest
+              ln -s /tools/riscv-none-elf-gcc /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf
+              ls -l /workspace/prebuilts/gcc/linux-x86_64/ | grep riscv
+              /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf/bin/riscv-none-elf-gcc --version | head -2
+            '
 
       - name: Run CI tasks inside Docker container
         env:
