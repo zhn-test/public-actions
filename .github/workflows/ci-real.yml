@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/rv64-xpack-probe]
+    branches: [ci/rv64-xpack-tmpfs-probe]
   # reusable
   workflow_call:
 
@@ -274,7 +274,7 @@ jobs:
           set -x
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-fixes2:under-test
+            ci/rv64-xpack-tmpfs:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
