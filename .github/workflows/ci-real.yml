@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-apache-flow-probe]
+    branches: [ci/sabre-386-probe]
   # reusable
   workflow_call:
 
@@ -218,28 +218,11 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
+        group: [ntfc-sabre]
         include:
-          # One group per NTFC configuration: the runtime step carries a single
-          # NTFC_TASK, and separate groups also give per-platform pass/fail.
-          - group: ntfc-sim
-            tasks:
-              - sim:citest@ntfc
-          - group: ntfc-rv32
-            tasks:
-              - rv-virt:citest@ntfc
-          - group: ntfc-rv64
-            tasks:
-              - rv-virt:citest64@ntfc
           - group: ntfc-sabre
             tasks:
               - sabre-6quad:citest@ntfc
-          - group: ntfc-armv8a
-            tasks:
-              - qemu-armv8a:citest@cmake@ntfc
-          - group: ntfc-armv8a-smp
-            tasks:
-              - qemu-armv8a:citest_smp@cmake@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
@@ -291,7 +274,7 @@ jobs:
           set -x
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-fixes2:under-test
+            ci/sabre-386-ntfc:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
