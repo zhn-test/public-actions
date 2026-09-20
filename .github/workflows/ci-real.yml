@@ -4,11 +4,8 @@ name: CI
 
 # Controls when the workflow will run
 on:
-#  pull_request_target:
-#    types: [opened, reopened, synchronize]
-#
-  # reusable
-  workflow_call:
+  push:
+    branches: [ci/ntfc-multiplatform-rebased-probe]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -59,21 +56,13 @@ jobs:
       run: |
         echo "Current Action URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
-    - name: Generate App Token
-      id: app-token
-      uses: actions/create-github-app-token@v1
-      with:
-        app-id: ${{ secrets.APP_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
-        owner: open-vela
-
     - name: Parse PR Description for Dependencies
       id: parse-dependencies
       env:
         PR_BODY: ${{ github.event.pull_request.body }}
         PR_REPO: ${{ github.repository }}
         PR_NUM: ${{ github.event.pull_request.number }}
-        CI_PAT: ${{ steps.app-token.outputs.token }}
+        CI_PAT: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -x
         printf '%s\n' "$PR_BODY" > pull_request.body.txt
@@ -222,53 +211,31 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     # Only the ntfc group is bounded here; the others keep GitHub's 360 default.
-    timeout-minutes: ${{ matrix.group == 'ntfc' && 180 || 360 }}
+    timeout-minutes: ${{ startsWith(matrix.group, 'ntfc') && 180 || 360 }}
     env:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [goldfish, sil, aurix, flagchip, qemu, ntfc]  # grouped by vendor / platform
+        group: [ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
         include:
-          - group: goldfish
+          - group: ntfc-sim
             tasks:
-              - goldfish-armeabi-v7a-ap@cmake
-              - goldfish-arm64-v8a-ap@cmake
-              - goldfish-x86_64-ap@cmake
-          - group: sil
+              - sim:citest@ntfc
+          - group: ntfc-rv32
             tasks:
-              - vendor/openvela/boards/sil/configs/ksil_arm32r_nsh_bl@cmake
-              - vendor/openvela/boards/sil/configs/ksil_arm32r_nsh_core0@cmake
-              - vendor/openvela/boards/sil/configs/sil_arm32r_nsh_bl@cmake
-              - vendor/openvela/boards/sil/configs/sil_arm32r_nsh_core0@cmake
-          - group: aurix
+              - rv-virt:citest@ntfc
+          - group: ntfc-rv64
             tasks:
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/bl@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core0@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core1@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core2@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core3@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core4@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core5@cmake
-          - group: flagchip
+              - rv-virt:citest64@ntfc
+          - group: ntfc-sabre
             tasks:
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/bl@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/core0@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/kbl@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/kcore0@cmake
-          - group: qemu
+              - sabre-6quad:citest@ntfc
+          - group: ntfc-armv8a
             tasks:
-              - qemu-arm64-v8a-ap@cmake
-              - qemu-arm64-v8a-server@cmake
-              - qemu-armeabi-v7a-ap@cmake
-              - qemu-armeabi-v7a-bl@cmake
-              - qemu-armeabi-v7a-server@cmake
-              - qemu-armeabi-v7a-tee@cmake
-              - qemu-armeabi-v8m-ap@cmake
-          # Runtime-test group. "ntfc" in the suffix runs the NuttX Test
-          # Framework for Community on the build output.
-          - group: ntfc
+              - qemu-armv8a:citest@cmake@ntfc
+          - group: ntfc-armv8a-smp
             tasks:
-              - sim:citest@cmake@ntfc
+              - qemu-armv8a:citest_smp@cmake@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
@@ -314,6 +281,18 @@ jobs:
           ~/bin/repo sync -c -d --no-tags -j12
           df -h
           pwd && ls -atl .
+
+      - name: Apply rebased multi-platform NTFC board changes
+        run: |
+          set -e
+          cd nuttx
+          git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
+            ci/ntfc-multiplatform-rebased:under-test
+          base=$(git merge-base HEAD under-test)
+          commits=$(git rev-list --reverse "$base"..under-test -- boards)
+          test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
+          cd -
 
       - name: Fetch PR
         if: ${{ github.event_name == 'pull_request_target' }}
@@ -489,6 +468,26 @@ jobs:
           sudo -E apt-get -qq clean
           df -h
 
+      - name: Use Apache xPack RISC-V toolchain for rv64
+        if: ${{ matrix.group == 'ntfc-rv64' }}
+        env:
+          CI_WORKSPACE: ${{ github.workspace }}
+        run: |
+          set -e
+          cd "${CI_WORKSPACE}"
+          docker run --rm -v "${CI_WORKSPACE}":/workspace -w /workspace \
+            ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+            /bin/bash -c '
+              echo "=== image toolchain ==="
+              riscv-none-elf-gcc --version | head -2
+              echo "=== manifest toolchain ==="
+              /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf/bin/riscv-none-elf-gcc --version | head -2
+              mv /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf \
+                 /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf.manifest
+              ln -s /tools/riscv-none-elf-gcc \
+                 /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf
+            '
+
       - name: Run CI tasks inside Docker container
         env:
           CI_WORKSPACE: ${{ github.workspace }}
@@ -506,9 +505,11 @@ jobs:
             run_ntfc=0
             echo "=== Starting task: $task ==="
             if [[ "$task" == *@* ]]; then
-              cmake_flag="--cmake"
               task_flags="${task#*@}"
               task=$(echo "$task" | awk -F '@' '{print $1}')
+            fi
+            if [[ "@${task_flags}@" == *"@cmake@"* ]]; then
+              cmake_flag="--cmake"
               cp_base_dir="cmake_out/*"
             fi
             if [[ "@${task_flags}@" == *"@ntfc@"* ]]; then
@@ -584,7 +585,7 @@ jobs:
       # collection and upload below stay reachable. A job timeout is reported as
       # cancelled, under which the Archive condition evaluates false.
       - name: Run NTFC runtime tests
-        if: ${{ matrix.group == 'ntfc' }}
+        if: ${{ startsWith(matrix.group, 'ntfc') }}
         timeout-minutes: 130
         env:
           CI_WORKSPACE: ${{ github.workspace }}
@@ -621,13 +622,15 @@ jobs:
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
             /bin/bash -c "set -e && python3 --version && \
               python3 -m venv /workspace/.ntfc-venv && \
-              /workspace/.ntfc-venv/bin/pip install --quiet ntfc==0.0.1 pytest==9.1.1 && \
+              /workspace/.ntfc-venv/bin/pip install --quiet ntfc==0.0.3 pytest==9.1.1 && \
               export PATH=/workspace/.ntfc-venv/bin:\$PATH && ntfc --help > /dev/null && \
               rm -rf /workspace/.ntfc && mkdir -p /workspace/.ntfc/external && \
-              git clone --depth=1 --branch release-0.0.1 \
+              git clone --depth=1 --branch release-0.0.2 \
                 https://github.com/apache/nuttx-ntfc-testing.git \
                 /workspace/.ntfc/external/nuttx-testing && \
-              cp -a ${ci_artifact_name}/. nuttx/ && ls -atl nuttx/nuttx nuttx/.config && \
+              cp -a ${ci_artifact_name}/. nuttx/ && \
+              mkdir -p nuttx/build && cp -a ${ci_artifact_name}/. nuttx/build/ && \
+              ls -atl nuttx/nuttx nuttx/.config && \
               bash /workspace/${ntfc_cfgdir}/run.sh"
           echo "NTFC runtime test passed: $task"
 
@@ -637,7 +640,7 @@ jobs:
       # run to completion it has already moved result and deleted
       # pytest.debug.log itself, so there is nothing left to find.
       - name: Collect NTFC diagnostics
-        if: ${{ always() && matrix.group == 'ntfc' }}
+        if: ${{ always() && startsWith(matrix.group, 'ntfc') }}
         env:
           CI_WORKSPACE: ${{ github.workspace }}
           NTFC_CONTAINER: ntfc-${{ github.run_id }}-${{ github.run_attempt }}
@@ -652,10 +655,22 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" "$dest"
           echo "collected $(find "$dest" -type f | wc -l) file(s)"
 
+      - name: Inspect NTFC collector output
+        if: ${{ always() && startsWith(matrix.group, 'ntfc') }}
+        run: |
+          cd "${{ github.workspace }}"
+          echo "=== leftovers in nuttx ==="
+          ls -d nuttx/result 2>/dev/null || echo "  nuttx/result absent"
+          ls -l nuttx/pytest.debug.log 2>/dev/null || echo "  nuttx/pytest.debug.log absent"
+          echo "=== files in upload path ==="
+          find "${{ matrix.group }}" -type f 2>/dev/null | wc -l
+          echo "=== stray NTFC containers ==="
+          docker ps -a --filter "name=ntfc-" --format '{{.Names}} {{.Status}}' || true
+
       # Unchanged for the other groups: upload on success only. ntfc also
       # uploads on failure, which is when its diagnostics are needed.
       - name: Archive CI Build Package
-        if: ${{ success() || (!cancelled() && matrix.group == 'ntfc') }}
+        if: ${{ success() || (!cancelled() && startsWith(matrix.group, 'ntfc')) }}
         uses: actions/upload-artifact@v4
         with:
           name: Build_Package_${{ matrix.group }}
@@ -671,20 +686,12 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Generate App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: open-vela
-
       - name: Post Processing
         env:
           CI_TASKS_STATUS: ${{ needs.ci-tasks.result }}
           DEPENDS_ON: ${{ needs.setup.outputs.DEPENDS_ON }}
           CURRENT_ACTION_URL: ${{ needs.setup.outputs.CURRENT_ACTION_URL }}
-          CI_PAT: ${{ steps.app-token.outputs.token }}
+          CI_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Job status: ${CI_TASKS_STATUS}"
 
