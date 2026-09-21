@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-multiplatform-rebased-probe]
+    branches: [ci/tests-makefile-fix-probe]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -281,6 +281,32 @@ jobs:
           ~/bin/repo sync -c -d --no-tags -j12
           df -h
           pwd && ls -atl .
+
+      - name: Apply open-vela/tests testsuites Makefile fix
+        run: |
+          set -e
+          cd tests
+          python3 - <<'EOF'
+          import re
+          p='testsuites/Makefile'
+          s=open(p).read()
+          drop=['CM_SCHED_TEST','CM_SYSCALL_TEST','CM_TIME_TEST',
+                'CM_PTHREAD_TEST','CM_MUTEX_TEST','TEST_TELEPHONY']
+          for sym in drop:
+              pat=re.compile(r'\nifneq \(\$\(CONFIG_'+sym+r'\),\)\n.*?\nendif\n', re.S)
+              assert pat.search(s), sym
+              s=pat.sub('\n', s, count=1)
+          s=re.sub(r'\n{3,}','\n\n',s)
+          open(p,'w').write(s)
+          EOF
+          echo "=== remaining module blocks ==="
+          grep -nE 'ifneq \(\$\(CONFIG_' testsuites/Makefile
+          echo "=== kernel dirs present ==="
+          ls -1 testsuites/kernel
+          git -c user.email=ci@example.invalid -c user.name=ci \
+            commit -aqm "testsuites: drop Makefile references to modules not present in this repo"
+          git log -1 --oneline
+          cd -
 
       - name: Apply rebased multi-platform NTFC board changes
         run: |
