@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ltp-kernel-switch-probe]
+    branches: [ci/riscv-flex-libfl-probe]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -216,26 +216,14 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
+        group: [ntfc-rv32, ntfc-rv64]
         include:
-          - group: ntfc-sim
-            tasks:
-              - sim:citest@ntfc
           - group: ntfc-rv32
             tasks:
               - rv-virt:citest@ntfc
           - group: ntfc-rv64
             tasks:
               - rv-virt:citest64@ntfc
-          - group: ntfc-sabre
-            tasks:
-              - sabre-6quad:citest@ntfc
-          - group: ntfc-armv8a
-            tasks:
-              - qemu-armv8a:citest@cmake@ntfc
-          - group: ntfc-armv8a-smp
-            tasks:
-              - qemu-armv8a:citest_smp@cmake@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
@@ -548,7 +536,14 @@ jobs:
               -v "${CI_WORKSPACE}":/workspace \
               -w /workspace \
               ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-              /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd && ls -atl nuttx"
+              /bin/bash -c "set -e && \
+                echo '=== install flex/libfl runtime and development packages ===' && \
+                apt-get update -qq && \
+                DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends flex libfl2 libfl-dev && \
+                ldconfig && \
+                dpkg-query -W -f='\${binary:Package} \${Version}\n' flex libfl2 libfl-dev && \
+                test -e /usr/lib/x86_64-linux-gnu/libfl.so.2 && \
+                pwd && touch $task && df -h && ls -atl && $build_cmd && ls -atl nuttx"
 
             echo "=== Backup CI results for $task ==="
             ci_artifact_name="${CI_MATRIX_GROUP}/${task//:/_}_${CI_TRIGGER_REPO}-${CI_PR_NUMBER}"
