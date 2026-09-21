@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-multiplatform-rebased-probe]
+    branches: [ci/ltp-kernel-switch-probe]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -282,6 +282,32 @@ jobs:
           df -h
           pwd && ls -atl .
 
+      - name: Apply open-vela/tests PR 16
+        run: |
+          set -e
+          cd tests
+          git fetch --depth=50 https://github.com/open-vela/tests.git \
+            refs/pull/16/head:tests-pr-16
+          echo "tests PR 16 head: $(git rev-parse tests-pr-16)"
+          base=$(git merge-base HEAD tests-pr-16)
+          commits=$(git rev-list --reverse "$base"..tests-pr-16)
+          test -n "$commits" || { echo "::error::tests PR 16 has nothing to apply"; exit 1; }
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
+          cd -
+
+      - name: Apply TESTING_LTP_KERNEL switch from test branch
+        run: |
+          set -e
+          cd apps
+          git fetch --depth=50 https://github.com/zhn-test/openvela-nuttx-apps.git \
+            ci/ltp-kernel-switch:ltp-kernel-switch
+          echo "ltp switch head: $(git rev-parse ltp-kernel-switch)"
+          base=$(git merge-base HEAD ltp-kernel-switch)
+          commits=$(git rev-list --reverse "$base"..ltp-kernel-switch -- testing/ltp)
+          test -n "$commits" || { echo "::error::LTP switch has nothing to apply"; exit 1; }
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
+          cd -
+
       - name: Apply rebased multi-platform NTFC board changes
         run: |
           set -e
@@ -468,24 +494,20 @@ jobs:
           sudo -E apt-get -qq clean
           df -h
 
-      - name: Use Apache xPack RISC-V toolchain for rv64
+      - name: Report manifest RISC-V toolchain for rv64
         if: ${{ matrix.group == 'ntfc-rv64' }}
         env:
           CI_WORKSPACE: ${{ github.workspace }}
         run: |
           set -e
           cd "${CI_WORKSPACE}"
+          echo "toolchain project: $(git -C prebuilts/gcc/linux-x86_64/riscv-none-elf rev-parse HEAD)"
           docker run --rm -v "${CI_WORKSPACE}":/workspace -w /workspace \
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
             /bin/bash -c '
-              echo "=== image toolchain ==="
-              riscv-none-elf-gcc --version | head -2
-              echo "=== manifest toolchain ==="
-              /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf/bin/riscv-none-elf-gcc --version | head -2
-              mv /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf \
-                 /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf.manifest
-              ln -s /tools/riscv-none-elf-gcc \
-                 /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf
+              tool=/workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf/bin/riscv-none-elf-gcc
+              "$tool" --version | head -2
+              "$tool" -print-multi-lib | grep -E "rv64imafdc.*lp64d" || true
             '
 
       - name: Run CI tasks inside Docker container
