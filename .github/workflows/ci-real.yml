@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/rv32-picked-fixes2-probe]
+    branches: [ci/rv32-picked-fixes3-probe]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -301,7 +301,7 @@ jobs:
           set -e
           cd apps
           git fetch --depth=50 https://github.com/zhn-test/openvela-nuttx-apps.git \
-            ci/ltp-kernel-switch:ltp-kernel-switch
+            ci/ltp-kernel-switch-cmocka-apache:ltp-kernel-switch
           echo "ltp switch head: $(git rev-parse ltp-kernel-switch)"
           base=$(git merge-base HEAD ltp-kernel-switch)
           commits=$(git rev-list --reverse "$base"..ltp-kernel-switch -- testing/ltp)
