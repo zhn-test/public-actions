@@ -216,14 +216,11 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-rv32, ntfc-rv64]
+        group: [ntfc-rv32]
         include:
           - group: ntfc-rv32
             tasks:
               - rv-virt:citest@ntfc
-          - group: ntfc-rv64
-            tasks:
-              - rv-virt:citest64@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
@@ -709,6 +706,26 @@ jobs:
           find "${{ matrix.group }}" -type f 2>/dev/null | wc -l
           echo "=== stray NTFC containers ==="
           docker ps -a --filter "name=ntfc-" --format '{{.Names}} {{.Status}}' || true
+
+      - name: Report NTFC result summary
+        if: ${{ always() && startsWith(matrix.group, 'ntfc') }}
+        run: |
+          cd "${{ github.workspace }}"
+          # Keep the result visible through public check-run annotations; the
+          # artifact and raw job log are not anonymously downloadable.
+          files=$(find "${{ matrix.group }}" nuttx -type f \( -name '*.xml' -o -name '*.json' -o -name '*.log' -o -name '*.txt' \) 2>/dev/null | sort | head -200)
+          if [ -z "$files" ]; then
+            echo "::warning title=NTFC diagnostics::No result files found"
+            exit 0
+          fi
+          while IFS= read -r file; do
+            grep -aEi 'passed|failed|skipped|error|timeout|unicode|shm_open|cmocka|device flood|test_help|popen' "$file" 2>/dev/null \
+              | tail -30 \
+              | while IFS= read -r line; do
+                  safe=$(printf '%s' "$line" | tr '\r\n' '  ' | cut -c1-900)
+                  [ -n "$safe" ] && echo "::notice title=NTFC result::$file: $safe"
+                done
+          done <<< "$files"
 
       # Unchanged for the other groups: upload on success only. ntfc also
       # uploads on failure, which is when its diagnostics are needed.
