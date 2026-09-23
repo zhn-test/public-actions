@@ -267,17 +267,14 @@ jobs:
           df -h
           pwd && ls -atl .
 
-      - name: Apply Apache-patched cmocka A/B branch
+      - name: Verify OpenVela CMocka source
         run: |
           set -e
           cd apps/testing/cmocka/cmocka
-          git fetch --depth=50 https://github.com/zhn-test/apps_testing_cmocka.git \
-            ci/apache-patched-cmocka:apache-patched-cmocka
-          echo "cmocka A/B head: $(git rev-parse apache-patched-cmocka)"
-          base=$(git merge-base HEAD apache-patched-cmocka)
-          commits=$(git rev-list --reverse "$base"..apache-patched-cmocka)
-          test -n "$commits" || { echo "::error::cmocka A/B has nothing to apply"; exit 1; }
-          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
+          echo "OpenVela CMocka source: $(git rev-parse HEAD)"
+          git log -1 --oneline
+          test -f include/cmocka.h
+          test -f src/cmocka.c
           cd -
 
       - name: Apply internal aio_h return fix from test fork
