@@ -314,6 +314,9 @@ jobs:
           commits=$(git rev-list --reverse "$base"..ltp-kernel-switch -- testing/ltp testing/cmocka)
           test -n "$commits" || { echo "::error::LTP switch has nothing to apply"; exit 1; }
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
+          echo "CMocka runner after apps cherry-pick:"
+          rg -n 'task_spawn|posix_spawn|exec_builtin' testing/cmocka/cmocka_main.c
+          rg -q 'task_spawn\(' testing/cmocka/cmocka_main.c
           cd -
 
       - name: Apply rebased multi-platform NTFC board changes
