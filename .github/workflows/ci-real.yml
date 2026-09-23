@@ -311,7 +311,7 @@ jobs:
             ci/ltp-kernel-switch-cmocka-apache:ltp-kernel-switch
           echo "ltp switch head: $(git rev-parse ltp-kernel-switch)"
           base=$(git merge-base HEAD ltp-kernel-switch)
-          commits=$(git rev-list --reverse "$base"..ltp-kernel-switch -- testing/ltp)
+          commits=$(git rev-list --reverse "$base"..ltp-kernel-switch -- testing/ltp testing/cmocka)
           test -n "$commits" || { echo "::error::LTP switch has nothing to apply"; exit 1; }
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
           cd -
