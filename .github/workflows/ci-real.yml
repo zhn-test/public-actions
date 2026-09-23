@@ -7,7 +7,7 @@ on:
   push:
     branches: [ci/rv32-apache-cmocka-probe]
 
-# Re-run the complete Apache-aligned NTFC matrix after the apps history rewrite.
+# Re-run the complete Apache-aligned NTFC matrix after the CMocka task-attribute fix.
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
