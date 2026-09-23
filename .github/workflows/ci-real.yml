@@ -218,11 +218,27 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-rv32]
+        # Match Apache's six-platform NTFC validation matrix.
+        group: [ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
         include:
+          - group: ntfc-sim
+            tasks:
+              - sim:citest@ntfc
           - group: ntfc-rv32
             tasks:
               - rv-virt:citest@ntfc
+          - group: ntfc-rv64
+            tasks:
+              - rv-virt:citest64@ntfc
+          - group: ntfc-sabre
+            tasks:
+              - sabre-6quad:citest@ntfc
+          - group: ntfc-armv8a
+            tasks:
+              - qemu-armv8a:citest@cmake@ntfc
+          - group: ntfc-armv8a-smp
+            tasks:
+              - qemu-armv8a:citest_smp@cmake@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
@@ -326,7 +342,7 @@ jobs:
           set -e
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/rv32-upstream-fixes:under-test
+            ci/ntfc-multiplatform-rebased:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
@@ -507,20 +523,24 @@ jobs:
           sudo -E apt-get -qq clean
           df -h
 
-      - name: Report manifest RISC-V toolchain for rv64
+      - name: Use Apache xPack RISC-V toolchain for rv64
         if: ${{ matrix.group == 'ntfc-rv64' }}
         env:
           CI_WORKSPACE: ${{ github.workspace }}
         run: |
           set -e
           cd "${CI_WORKSPACE}"
-          echo "toolchain project: $(git -C prebuilts/gcc/linux-x86_64/riscv-none-elf rev-parse HEAD)"
           docker run --rm -v "${CI_WORKSPACE}":/workspace -w /workspace \
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
             /bin/bash -c '
-              tool=/workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf/bin/riscv-none-elf-gcc
-              "$tool" --version | head -2
-              "$tool" -print-multi-lib | grep -E "rv64imafdc.*lp64d" || true
+              echo "=== image toolchain ==="
+              riscv-none-elf-gcc --version | head -2
+              echo "=== manifest toolchain ==="
+              /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf/bin/riscv-none-elf-gcc --version | head -2
+              mv /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf \
+                 /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf.manifest
+              ln -s /tools/riscv-none-elf-gcc \
+                 /workspace/prebuilts/gcc/linux-x86_64/riscv-none-elf
             '
 
       - name: Run CI tasks inside Docker container
