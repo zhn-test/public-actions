@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-multiplatform-rebased-probe]
+    branches: [ci/ntfc-intel64-probe]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -216,26 +216,11 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
+        group: [ntfc-intel64]
         include:
-          - group: ntfc-sim
+          - group: ntfc-intel64
             tasks:
-              - sim:citest@ntfc
-          - group: ntfc-rv32
-            tasks:
-              - rv-virt:citest@ntfc
-          - group: ntfc-rv64
-            tasks:
-              - rv-virt:citest64@ntfc
-          - group: ntfc-sabre
-            tasks:
-              - sabre-6quad:citest@ntfc
-          - group: ntfc-armv8a
-            tasks:
-              - qemu-armv8a:citest@cmake@ntfc
-          - group: ntfc-armv8a-smp
-            tasks:
-              - qemu-armv8a:citest_smp@cmake@ntfc
+              - qemu-intel64:citest_smp@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
@@ -282,12 +267,12 @@ jobs:
           df -h
           pwd && ls -atl .
 
-      - name: Apply rebased multi-platform NTFC board changes
+      - name: Apply Intel64 NTFC board configuration
         run: |
           set -e
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-multiplatform-rebased:under-test
+            ci/ntfc-intel64-probe:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
@@ -621,6 +606,11 @@ jobs:
             -e ARTIFACTCONFDIR="/workspace/${ci_artifact_name}" \
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
             /bin/bash -c "set -e && python3 --version && \
+              for i in 1 2 3; do apt-get update -qq && \
+                apt-get install -y -qq --no-install-recommends qemu-system-x86 && break; \
+                echo \"apt attempt \$i failed for qemu-system-x86\"; \
+                [ \"\$i\" != 3 ] || exit 1; sleep 15; done && \
+              qemu-system-x86_64 --version | head -2 && \
               python3 -m venv /workspace/.ntfc-venv && \
               /workspace/.ntfc-venv/bin/pip install --quiet ntfc==0.0.3 pytest==9.1.1 && \
               export PATH=/workspace/.ntfc-venv/bin:\$PATH && ntfc --help > /dev/null && \
