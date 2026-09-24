@@ -308,19 +308,6 @@ jobs:
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
           cd -
 
-      - name: Apply open-vela/tests PR 16
-        run: |
-          set -e
-          cd tests
-          git fetch --depth=50 https://github.com/open-vela/tests.git \
-            refs/pull/16/head:tests-pr-16
-          echo "tests PR 16 head: $(git rev-parse tests-pr-16)"
-          base=$(git merge-base HEAD tests-pr-16)
-          commits=$(git rev-list --reverse "$base"..tests-pr-16)
-          test -n "$commits" || { echo "::error::tests PR 16 has nothing to apply"; exit 1; }
-          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
-          cd -
-
       - name: Apply TESTING_LTP_KERNEL switch from test branch
         run: |
           set -e
