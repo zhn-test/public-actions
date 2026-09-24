@@ -342,7 +342,7 @@ jobs:
           set -e
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-multiplatform-rebased:under-test
+            ci/rv32-upstream-fixes:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
