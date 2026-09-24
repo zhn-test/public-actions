@@ -582,10 +582,7 @@ jobs:
               -w /workspace \
               ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
               /bin/bash -c "set -e && \
-                echo '=== install flex/libfl runtime and development packages ===' && \
-                apt-get update -qq && \
-                DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends flex libfl2 libfl-dev && \
-                ldconfig && \
+                echo '=== verify flex/libfl packages from the CI image ===' && \
                 dpkg-query -W -f='\${binary:Package} \${Version}\n' flex libfl2 libfl-dev && \
                 test -e /usr/lib/x86_64-linux-gnu/libfl.so.2 && \
                 pwd && touch $task && df -h && ls -atl && $build_cmd && ls -atl nuttx"
