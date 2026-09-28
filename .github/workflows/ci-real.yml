@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-intel64-stack-fix]
+    branches: [ci/ntfc-intel64-bsp-probe]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -272,7 +272,7 @@ jobs:
           set -e
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-intel64-stack-fix:under-test
+            ci/ntfc-intel64-bsp-probe:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards arch/x86_64)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
