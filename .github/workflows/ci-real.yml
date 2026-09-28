@@ -507,11 +507,20 @@ jobs:
             fi
             echo $build_cmd
 
+            set +e
             docker run --rm \
               -v "${CI_WORKSPACE}":/workspace \
               -w /workspace \
               ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-              /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd && ls -atl nuttx"
+              /bin/bash -c "pwd && touch $task && df -h && ls -atl && $build_cmd && ls -atl nuttx" \
+              2>&1 | tee build.log
+            build_status=${PIPESTATUS[0]}
+            set -e
+            if [ "$build_status" -ne 0 ]; then
+              echo "=== Last build output ==="
+              tail -n 40 build.log 2>/dev/null | sed 's/^/::error::build: /'
+              exit "$build_status"
+            fi
 
             echo "=== Backup CI results for $task ==="
             ci_artifact_name="${CI_MATRIX_GROUP}/${task//:/_}_${CI_TRIGGER_REPO}-${CI_PR_NUMBER}"
