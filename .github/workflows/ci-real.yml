@@ -274,7 +274,7 @@ jobs:
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
             ci/ntfc-intel64-probe:under-test
           base=$(git merge-base HEAD under-test)
-          commits=$(git rev-list --reverse "$base"..under-test -- boards)
+          commits=$(git rev-list --reverse "$base"..under-test -- boards arch/x86_64)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
           cd -
