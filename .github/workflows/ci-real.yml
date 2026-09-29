@@ -4,11 +4,8 @@ name: CI
 
 # Controls when the workflow will run
 on:
-#  pull_request_target:
-#    types: [opened, reopened, synchronize]
-#
-  # reusable
-  workflow_call:
+  push:
+    branches: [ci/ntfc-six-platforms-final]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -59,21 +56,13 @@ jobs:
       run: |
         echo "Current Action URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
-    - name: Generate App Token
-      id: app-token
-      uses: actions/create-github-app-token@v1
-      with:
-        app-id: ${{ secrets.APP_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
-        owner: open-vela
-
     - name: Parse PR Description for Dependencies
       id: parse-dependencies
       env:
         PR_BODY: ${{ github.event.pull_request.body }}
         PR_REPO: ${{ github.repository }}
         PR_NUM: ${{ github.event.pull_request.number }}
-        CI_PAT: ${{ steps.app-token.outputs.token }}
+        CI_PAT: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -x
         printf '%s\n' "$PR_BODY" > pull_request.body.txt
@@ -313,9 +302,9 @@ jobs:
           SNAPSHOT_FILE: ${{ needs.setup.outputs.SNAPSHOT }}
         run: |
           ~/bin/repo init -u https://github.com/open-vela/manifests -b "$PR_BASE_REF" -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
+          # Sync the latest openvela.xml rather than the setup job's pinned
+          # snapshot; the snapshot is still copied for the PR-mode lookups.
           cp "$SNAPSHOT_FILE"  .repo/manifests/
-          echo "~/bin/repo init -m $SNAPSHOT_FILE --group=default,platform-linux --depth=1 --git-lfs"
-          ~/bin/repo init -m "$SNAPSHOT_FILE" --group=default,platform-linux --depth=1 --git-lfs
           echo "REPO_INIT=true" >> $GITHUB_ENV
 
       - name: Repo Sync
@@ -325,8 +314,22 @@ jobs:
           git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           df -h
           ~/bin/repo sync -c -d --no-tags -j12
+          echo "=== synced revisions ==="
+          ~/bin/repo forall nuttx apps tests -c 'echo "$REPO_PATH $(git rev-parse HEAD)"' || true
           df -h
           pwd && ls -atl .
+
+      - name: Apply NTFC board and arch changes
+        run: |
+          set -e
+          cd nuttx
+          git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
+            ci/ntfc-six-platforms-final:under-test
+          base=$(git merge-base HEAD under-test)
+          commits=$(git rev-list --reverse "$base"..under-test -- boards)
+          test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
+          cd -
 
       - name: Fetch PR
         if: ${{ github.event_name == 'pull_request_target' }}
@@ -709,20 +712,12 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Generate App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: open-vela
-
       - name: Post Processing
         env:
           CI_TASKS_STATUS: ${{ needs.ci-tasks.result }}
           DEPENDS_ON: ${{ needs.setup.outputs.DEPENDS_ON }}
           CURRENT_ACTION_URL: ${{ needs.setup.outputs.CURRENT_ACTION_URL }}
-          CI_PAT: ${{ steps.app-token.outputs.token }}
+          CI_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Job status: ${CI_TASKS_STATUS}"
 
