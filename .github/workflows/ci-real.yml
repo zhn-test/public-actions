@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-multiplatform-rebased-probe]
+    branches: [ci/ntfc-five-platforms-verify]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -216,14 +216,11 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
+        group: [ntfc-sim, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]
         include:
           - group: ntfc-sim
             tasks:
               - sim:citest@ntfc
-          - group: ntfc-rv32
-            tasks:
-              - rv-virt:citest@ntfc
           - group: ntfc-rv64
             tasks:
               - rv-virt:citest64@ntfc
@@ -287,7 +284,7 @@ jobs:
           set -e
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-multiplatform-rebased:under-test
+            ci/ntfc-five-platforms-verify:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
