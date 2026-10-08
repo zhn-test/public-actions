@@ -293,6 +293,18 @@ jobs:
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
           cd -
 
+      - name: Apply aio_h and shm_open fixes to LTP
+        run: |
+          set -e
+          cd apps/testing/ltp/ltp
+          git fetch --depth=50 https://github.com/zhn-test/apps_testing_ltp.git \
+            ci/aio-h-return:ltp-fixes
+          base=$(git merge-base HEAD ltp-fixes)
+          commits=$(git rev-list --reverse "$base"..ltp-fixes)
+          test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
+          cd -
+
       - name: Fetch PR
         if: ${{ github.event_name == 'pull_request_target' }}
         env:
