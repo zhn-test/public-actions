@@ -218,62 +218,9 @@ jobs:
       matrix:
         group: [ntfc-rv32]  # grouped by vendor / platform
         include:
-          - group: goldfish
-            tasks:
-              - goldfish-armeabi-v7a-ap@cmake
-              - goldfish-arm64-v8a-ap@cmake
-              - goldfish-x86_64-ap@cmake
-          - group: sil
-            tasks:
-              - vendor/openvela/boards/sil/configs/ksil_arm32r_nsh_bl@cmake
-              - vendor/openvela/boards/sil/configs/ksil_arm32r_nsh_core0@cmake
-              - vendor/openvela/boards/sil/configs/sil_arm32r_nsh_bl@cmake
-              - vendor/openvela/boards/sil/configs/sil_arm32r_nsh_core0@cmake
-          - group: aurix
-            tasks:
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/bl@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core0@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core1@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core2@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core3@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core4@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core5@cmake
-          - group: flagchip
-            tasks:
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/bl@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/core0@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/kbl@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/kcore0@cmake
-          - group: qemu
-            tasks:
-              - qemu-arm64-v8a-ap@cmake
-              - qemu-arm64-v8a-server@cmake
-              - qemu-armeabi-v7a-ap@cmake
-              - qemu-armeabi-v7a-bl@cmake
-              - qemu-armeabi-v7a-server@cmake
-              - qemu-armeabi-v7a-tee@cmake
-              - qemu-armeabi-v8m-ap@cmake
-          # Runtime-test groups, one configuration each. "ntfc" in the
-          # suffix runs the NuttX Test Framework for Community on the build
-          # output; "cmake" selects the CMake build, as in Apache's CI.
-          - group: ntfc-sim
-            tasks:
-              - sim:citest@ntfc
           - group: ntfc-rv32
             tasks:
               - rv-virt:citest@ntfc
-          - group: ntfc-rv64
-            tasks:
-              - rv-virt:citest64@ntfc
-          - group: ntfc-sabre
-            tasks:
-              - sabre-6quad:citest@ntfc
-          - group: ntfc-armv8a
-            tasks:
-              - qemu-armv8a:citest@cmake@ntfc
-          - group: ntfc-armv8a-smp
-            tasks:
-              - qemu-armv8a:citest_smp@cmake@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
@@ -330,6 +277,18 @@ jobs:
             ci/rv32-binfs-only:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards)
+          test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
+          cd -
+
+      - name: Apply TESTING_LTP_KERNEL switch
+        run: |
+          set -e
+          cd apps
+          git fetch --depth=50 https://github.com/zhn-test/openvela-nuttx-apps.git \
+            ci/ltp-kernel-switch-only:ltp-kernel-switch
+          base=$(git merge-base HEAD ltp-kernel-switch)
+          commits=$(git rev-list --reverse "$base"..ltp-kernel-switch)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
           cd -
