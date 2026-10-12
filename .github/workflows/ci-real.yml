@@ -271,12 +271,10 @@ jobs:
         run: |
           set -e
           cd nuttx
-          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
-            git fetch --deepen=200 origin dev
-          fi
           git fetch --depth=200 https://github.com/zhangning21/nuttx_zhn-test.git \
             ci/ntfc-intel64-change10477350:under-test
-          base=$(git merge-base HEAD under-test)
+          base=c9ead1080d1c1f8a3184fd1cd53581c594f5bb99
+          git cat-file -e "$base^{commit}"
           commits=$(git rev-list --reverse "$base"..under-test -- boards arch/x86_64 mm)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
