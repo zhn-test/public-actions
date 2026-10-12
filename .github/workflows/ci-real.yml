@@ -644,7 +644,7 @@ jobs:
               git -C /workspace/.ntfc-src -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \$(git -C /workspace/.ntfc-src rev-list --reverse dc8488f..pr31) && \
               git -C /workspace/.ntfc-src log --oneline -4 && \
               /workspace/.ntfc-venv/bin/pip install --quiet /workspace/.ntfc-src pytest==9.1.1 && \
-              /workspace/.ntfc-venv/bin/python -m pytest -q -p no:cacheprovider /workspace/.ntfc-src/tests/device/test_common.py /workspace/.ntfc-src/tests/test_command_builder.py /workspace/.ntfc-src/tests/pytest/test_collector.py && \
+              (cd /workspace/.ntfc-src && /workspace/.ntfc-venv/bin/python -m pytest -q -p no:cacheprovider tests/device/test_common.py tests/test_command_builder.py tests/pytest/test_collector.py) && \
               export PATH=/workspace/.ntfc-venv/bin:\$PATH && ntfc --help > /dev/null && \
               rm -rf /workspace/.ntfc && mkdir -p /workspace/.ntfc/external && \
               git clone --depth=1 --branch release-0.0.2 \
