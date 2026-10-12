@@ -637,12 +637,14 @@ jobs:
               rm -rf /workspace/.ntfc-src && \
               git clone -q https://github.com/apache/nuttx-ntfc.git /workspace/.ntfc-src && \
               git -C /workspace/.ntfc-src checkout -q 69af6fe && \
-              git -C /workspace/.ntfc-src fetch -q origin pull/30/head:pr30 && \
+              git -C /workspace/.ntfc-src fetch -q origin pull/30/head:pr30 pull/31/head:pr31 && \
               echo ntfc-pr30-head=\$(git -C /workspace/.ntfc-src rev-parse pr30) && \
+              echo ntfc-pr31-head=\$(git -C /workspace/.ntfc-src rev-parse pr31) && \
               git -C /workspace/.ntfc-src -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \$(git -C /workspace/.ntfc-src rev-list --reverse dc8488f..pr30) && \
-              git -C /workspace/.ntfc-src log --oneline -3 && \
+              git -C /workspace/.ntfc-src -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \$(git -C /workspace/.ntfc-src rev-list --reverse dc8488f..pr31) && \
+              git -C /workspace/.ntfc-src log --oneline -4 && \
               /workspace/.ntfc-venv/bin/pip install --quiet /workspace/.ntfc-src pytest==9.1.1 && \
-              /workspace/.ntfc-venv/bin/python -m pytest -q -p no:cacheprovider /workspace/.ntfc-src/tests/device/test_common.py /workspace/.ntfc-src/tests/test_command_builder.py && \
+              /workspace/.ntfc-venv/bin/python -m pytest -q -p no:cacheprovider /workspace/.ntfc-src/tests/device/test_common.py /workspace/.ntfc-src/tests/test_command_builder.py /workspace/.ntfc-src/tests/pytest/test_collector.py && \
               export PATH=/workspace/.ntfc-venv/bin:\$PATH && ntfc --help > /dev/null && \
               rm -rf /workspace/.ntfc && mkdir -p /workspace/.ntfc/external && \
               git clone --depth=1 --branch release-0.0.2 \
