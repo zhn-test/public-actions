@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/rv32-final-probe]
+    branches: [ci/ntfc-six-pinned-probe]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -216,11 +216,26 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-rv32]  # grouped by vendor / platform
+        group: [ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]  # grouped by vendor / platform
         include:
+          - group: ntfc-sim
+            tasks:
+              - sim:citest@ntfc
           - group: ntfc-rv32
             tasks:
               - rv-virt:citest@ntfc
+          - group: ntfc-rv64
+            tasks:
+              - rv-virt:citest64@ntfc
+          - group: ntfc-sabre
+            tasks:
+              - sabre-6quad:citest@ntfc
+          - group: ntfc-armv8a
+            tasks:
+              - qemu-armv8a:citest@cmake@ntfc
+          - group: ntfc-armv8a-smp
+            tasks:
+              - qemu-armv8a:citest_smp@cmake@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
