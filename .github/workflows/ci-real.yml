@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/rv32-binfs-only-probe]
+    branches: [ci/rv32-final-probe]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -274,11 +274,21 @@ jobs:
           set -e
           cd nuttx
           git fetch --depth=50 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/rv32-ltp-deps:under-test
+            ci/rv32-final:under-test
           base=$(git merge-base HEAD under-test)
           commits=$(git rev-list --reverse "$base"..under-test -- boards)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
+          cd -
+
+      - name: Apply open-vela/nuttx PR 402 (rv-virt citest binfs)
+        run: |
+          set -e
+          cd nuttx
+          git fetch --depth=50 https://github.com/open-vela/nuttx.git \
+            refs/pull/402/head:nuttx-pr-402
+          echo "nuttx PR 402 head: $(git rev-parse nuttx-pr-402)"
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x nuttx-pr-402
           cd -
 
       - name: Apply Apache LTP stack size
@@ -634,17 +644,10 @@ jobs:
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
             /bin/bash -c "set -e && python3 --version && \
               python3 -m venv /workspace/.ntfc-venv && \
-              rm -rf /workspace/.ntfc-src && \
-              git clone -q https://github.com/apache/nuttx-ntfc.git /workspace/.ntfc-src && \
-              git -C /workspace/.ntfc-src checkout -q 69af6fe && \
-              git -C /workspace/.ntfc-src fetch -q origin pull/30/head:pr30 pull/31/head:pr31 && \
-              echo ntfc-pr30-head=\$(git -C /workspace/.ntfc-src rev-parse pr30) && \
-              echo ntfc-pr31-head=\$(git -C /workspace/.ntfc-src rev-parse pr31) && \
-              git -C /workspace/.ntfc-src -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \$(git -C /workspace/.ntfc-src rev-list --reverse dc8488f..pr30) && \
-              git -C /workspace/.ntfc-src -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \$(git -C /workspace/.ntfc-src rev-list --reverse dc8488f..pr31) && \
-              git -C /workspace/.ntfc-src log --oneline -4 && \
-              /workspace/.ntfc-venv/bin/pip install --quiet /workspace/.ntfc-src pytest==9.1.1 && \
-              (cd /workspace/.ntfc-src && /workspace/.ntfc-venv/bin/python -m pytest -q -p no:cacheprovider tests/device/test_common.py tests/test_command_builder.py tests/pytest/test_collector.py) && \
+              /workspace/.ntfc-venv/bin/pip install --quiet \
+                \"ntfc @ git+https://github.com/apache/nuttx-ntfc.git@9e17dbeacd02c9081dd0512dac5e6a3cf4730167\" \
+                pytest==9.1.1 && \
+              /workspace/.ntfc-venv/bin/pip show ntfc | head -3 && \
               export PATH=/workspace/.ntfc-venv/bin:\$PATH && ntfc --help > /dev/null && \
               rm -rf /workspace/.ntfc && mkdir -p /workspace/.ntfc/external && \
               git clone --depth=1 --branch release-0.0.2 \
