@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-intel64-change10477350-probe]
+    branches: [ci/ntfc-intel64-delaycb-probe]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -272,10 +272,10 @@ jobs:
           set -e
           cd nuttx
           git fetch --depth=200 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-intel64-change10477350:under-test
+            ci/ntfc-intel64-delaycb:under-test
           base=c9ead1080d1c1f8a3184fd1cd53581c594f5bb99
           git cat-file -e "$base^{commit}"
-          commits=$(git rev-list --reverse "$base"..under-test -- boards arch/x86_64 mm)
+          commits=$(git rev-list --reverse "$base"..under-test)
           test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
           cd -
