@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-intel64-base-x5]
+    branches: [ci/ntfc-intel64-pr405v2-x5]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -279,17 +279,16 @@ jobs:
           df -h
           pwd && ls -atl .
 
-      - name: Apply Intel64 NTFC board configuration
+      - name: Apply open-vela/nuttx PR 405
         run: |
           set -e
           cd nuttx
-          git fetch --depth=200 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-intel64-pt-picks:under-test
-          base=c9ead1080d1c1f8a3184fd1cd53581c594f5bb99
-          git cat-file -e "$base^{commit}"
-          commits=$(git rev-list --reverse "$base"..under-test)
-          test -n "$commits" || { echo "::error::nothing to apply"; exit 1; }
-          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x $commits
+          git fetch --depth=50 https://github.com/open-vela/nuttx.git \
+            refs/pull/405/head:nuttx-pr-405
+          echo "nuttx PR 405 head: $(git rev-parse nuttx-pr-405)"
+          test "$(git rev-parse nuttx-pr-405)" = 99d7239927e1797dc372e235689742f6f3019002
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x nuttx-pr-405
+          git log --oneline -2
           cd -
 
       - name: Fetch PR
