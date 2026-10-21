@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-intel64-pr405v2-x5]
+    branches: [ci/ntfc-intel64-pr405v3]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -216,21 +216,9 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-intel64-r1, ntfc-intel64-r2, ntfc-intel64-r3, ntfc-intel64-r4, ntfc-intel64-r5]
+        group: [ntfc-intel64]
         include:
-          - group: ntfc-intel64-r1
-            tasks:
-              - qemu-intel64:citest_smp@ntfc
-          - group: ntfc-intel64-r2
-            tasks:
-              - qemu-intel64:citest_smp@ntfc
-          - group: ntfc-intel64-r3
-            tasks:
-              - qemu-intel64:citest_smp@ntfc
-          - group: ntfc-intel64-r4
-            tasks:
-              - qemu-intel64:citest_smp@ntfc
-          - group: ntfc-intel64-r5
+          - group: ntfc-intel64
             tasks:
               - qemu-intel64:citest_smp@ntfc
       fail-fast: false
@@ -279,16 +267,20 @@ jobs:
           df -h
           pwd && ls -atl .
 
-      - name: Apply open-vela/nuttx PR 405
+      - name: Apply open-vela/nuttx PR 406 and PR 405
         run: |
           set -e
           cd nuttx
-          git fetch --depth=50 https://github.com/open-vela/nuttx.git \
-            refs/pull/405/head:nuttx-pr-405
-          echo "nuttx PR 405 head: $(git rev-parse nuttx-pr-405)"
-          test "$(git rev-parse nuttx-pr-405)" = 99d7239927e1797dc372e235689742f6f3019002
-          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x nuttx-pr-405
-          git log --oneline -2
+          for pr in 406 405; do
+            git fetch --depth=50 https://github.com/open-vela/nuttx.git \
+              refs/pull/$pr/head:nuttx-pr-$pr
+            echo "nuttx PR $pr head: $(git rev-parse nuttx-pr-$pr)"
+          done
+          test "$(git rev-parse nuttx-pr-406)" = b4bc66bd4eabe2189bec823ec75819ce13a57e71
+          test "$(git rev-parse nuttx-pr-405)" = 281f2a15252ea4dfbadbc5b50977abe8ddbb3df2
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \
+            $(git rev-list --reverse nuttx-pr-406 --not HEAD) nuttx-pr-405
+          git log --oneline -12
           cd -
 
       - name: Fetch PR
