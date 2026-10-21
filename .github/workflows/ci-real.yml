@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-intel64-pr405v3]
+    branches: [ci/ntfc-intel64-pr405only]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -267,20 +267,16 @@ jobs:
           df -h
           pwd && ls -atl .
 
-      - name: Apply open-vela/nuttx PR 406 and PR 405
+      - name: Apply open-vela/nuttx PR 405
         run: |
           set -e
           cd nuttx
-          for pr in 406 405; do
-            git fetch --depth=50 https://github.com/open-vela/nuttx.git \
-              refs/pull/$pr/head:nuttx-pr-$pr
-            echo "nuttx PR $pr head: $(git rev-parse nuttx-pr-$pr)"
-          done
-          test "$(git rev-parse nuttx-pr-406)" = b4bc66bd4eabe2189bec823ec75819ce13a57e71
+          git fetch --depth=50 https://github.com/open-vela/nuttx.git \
+            refs/pull/405/head:nuttx-pr-405
+          echo "nuttx PR 405 head: $(git rev-parse nuttx-pr-405)"
           test "$(git rev-parse nuttx-pr-405)" = 281f2a15252ea4dfbadbc5b50977abe8ddbb3df2
-          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \
-            $(git rev-list --reverse nuttx-pr-406 --not HEAD) nuttx-pr-405
-          git log --oneline -12
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x nuttx-pr-405
+          git log --oneline -2
           cd -
 
       - name: Fetch PR
