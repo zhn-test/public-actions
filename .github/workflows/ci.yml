@@ -4,11 +4,8 @@ name: CI
 
 # Controls when the workflow will run
 on:
-  pull_request_target:
-    types: [opened, reopened, synchronize]
-
-  # reusable
-  workflow_call:
+  push:
+    branches: [ci/trunk-ubuntu2404-probe]
 
 # 最小权限原则 - 顶层只声明只读，各 job 按需提升
 permissions:
@@ -20,7 +17,7 @@ permissions:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       TRIGGER_REPO_NAME: ${{ steps.set-env.outputs.TRIGGER_REPO_NAME }}
       TRIGGER_COMMIT_ID: ${{ steps.set-env.outputs.TRIGGER_COMMIT_ID }}
@@ -60,13 +57,6 @@ jobs:
       run: |
         echo "Current Action URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
-    - name: Generate App Token
-      id: app-token
-      uses: actions/create-github-app-token@v1
-      with:
-        app-id: ${{ secrets.APP_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
-        owner: open-vela
 
     - name: Parse PR Description for Dependencies
       id: parse-dependencies
@@ -75,7 +65,7 @@ jobs:
         PR_BODY: ${{ github.event.pull_request.body }}
         PR_REPO: ${{ github.repository }}
         PR_NUM: ${{ github.event.pull_request.number }}
-        CI_PAT: ${{ steps.app-token.outputs.token }}
+        CI_PAT: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -x
         # 安全地将 PR body 写入文件（通过环境变量，不会被 shell 解析执行）
@@ -179,7 +169,7 @@ jobs:
       env:
         PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
       run: |
-        ~/bin/repo init -u https://github.com/open-vela/manifests -b "$PR_BASE_REF" -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
+        ~/bin/repo init -u https://github.com/open-vela/manifests -b "${PR_BASE_REF:-trunk}" -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
         echo "REPO_INIT=true" >> $GITHUB_ENV
 
     - name: Apply manifest PR before sync
@@ -219,7 +209,7 @@ jobs:
   # 并行执行的CI任务矩阵
   ci-tasks:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       DOCKER_BUILDKIT: 1
     strategy:
@@ -272,10 +262,8 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
           SNAPSHOT_FILE: ${{ needs.setup.outputs.SNAPSHOT }}
         run: |
-          ~/bin/repo init -u https://github.com/open-vela/manifests -b "$PR_BASE_REF" -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
+          ~/bin/repo init -u https://github.com/open-vela/manifests -b "${PR_BASE_REF:-trunk}" -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
           cp "$SNAPSHOT_FILE"  .repo/manifests/
-          echo "~/bin/repo init -m $SNAPSHOT_FILE --group=default,platform-linux --depth=1 --git-lfs"
-          ~/bin/repo init -m "$SNAPSHOT_FILE" --group=default,platform-linux --depth=1 --git-lfs
           echo "REPO_INIT=true" >> $GITHUB_ENV
 
       - name: Repo Sync
@@ -545,22 +533,15 @@ jobs:
   post-processing:
     needs: [setup, ci-tasks]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - name: Generate App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: open-vela
 
       - name: Post Processing
         env:
           CI_TASKS_STATUS: ${{ needs.ci-tasks.result }}
           DEPENDS_ON: ${{ needs.setup.outputs.DEPENDS_ON }}
           CURRENT_ACTION_URL: ${{ needs.setup.outputs.CURRENT_ACTION_URL }}
-          CI_PAT: ${{ steps.app-token.outputs.token }}
+          CI_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Job status: $CI_TASKS_STATUS"
 
