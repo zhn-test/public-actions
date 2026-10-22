@@ -276,23 +276,11 @@ jobs:
               refs/pull/$pr/head:nuttx-pr-$pr
             echo "nuttx PR $pr head: $(git rev-parse nuttx-pr-$pr)"
           done
-          test "$(git rev-parse nuttx-pr-406)" = b4bc66bd4eabe2189bec823ec75819ce13a57e71
-          test "$(git rev-parse nuttx-pr-405)" = 281f2a15252ea4dfbadbc5b50977abe8ddbb3df2
+          test "$(git rev-parse nuttx-pr-406)" = 46f17ee26a8261953985d39013ce47faa7ac095c
+          test "$(git rev-parse nuttx-pr-405)" = 8c8701c630ee3719c8898ee12165223511f12805
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \
-            $(git rev-list --reverse nuttx-pr-406 --not HEAD) nuttx-pr-405
+            $(git rev-list --reverse nuttx-pr-406 --not HEAD) $(git rev-list --reverse nuttx-pr-405 --not HEAD)
           git log --oneline -12
-          cd -
-
-      - name: Apply qemu-intel64 TMPFS and board bringup commits
-        run: |
-          set -e
-          cd nuttx
-          git fetch --depth=20 https://github.com/zhangning21/nuttx_zhn-test.git \
-            ci/ntfc-intel64-fixups:intel64-fixups
-          test "$(git rev-parse intel64-fixups)" = c8775c90f95178a8ada102eeb1a5b6a0d4fbb634
-          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \
-            41ad1e2e7c7e9cf8522bbb3945917d63890890ef c8775c90f95178a8ada102eeb1a5b6a0d4fbb634
-          git log --oneline -3
           cd -
 
       - name: Fetch PR
