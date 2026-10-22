@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-intel64-405-406-fixups]
+    branches: [ci/ntfc-intel64-405-406-x5]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -216,9 +216,21 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-intel64]
+        group: [ntfc-intel64-r1, ntfc-intel64-r2, ntfc-intel64-r3, ntfc-intel64-r4, ntfc-intel64-r5]
         include:
-          - group: ntfc-intel64
+          - group: ntfc-intel64-r1
+            tasks:
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r2
+            tasks:
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r3
+            tasks:
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r4
+            tasks:
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r5
             tasks:
               - qemu-intel64:citest_smp@ntfc
       fail-fast: false
