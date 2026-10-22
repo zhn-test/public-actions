@@ -269,19 +269,16 @@ jobs:
           df -h
           pwd && ls -atl .
 
-      - name: Apply open-vela/nuttx PR 406 and PR 405
+      - name: Apply open-vela/nuttx PR 405
         run: |
           set -e
           cd nuttx
-          for pr in 406 405; do
-            git fetch --depth=50 https://github.com/open-vela/nuttx.git \
-              refs/pull/$pr/head:nuttx-pr-$pr
-            echo "nuttx PR $pr head: $(git rev-parse nuttx-pr-$pr)"
-          done
-          test "$(git rev-parse nuttx-pr-406)" = 46f17ee26a8261953985d39013ce47faa7ac095c
-          test "$(git rev-parse nuttx-pr-405)" = 8c8701c630ee3719c8898ee12165223511f12805
+          git fetch --depth=50 https://github.com/open-vela/nuttx.git \
+            refs/pull/405/head:nuttx-pr-405
+          echo "nuttx PR 405 head: $(git rev-parse nuttx-pr-405)"
+          test "$(git rev-parse nuttx-pr-405)" = 34c7d0ad87dd7f04dd20ae4cf0e464921ebc1a3d
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \
-            $(git rev-list --reverse nuttx-pr-406 --not HEAD) $(git rev-list --reverse nuttx-pr-405 --not HEAD)
+            $(git rev-list --reverse nuttx-pr-405 --not HEAD)
           git log --oneline -14
           cd -
 
