@@ -4,11 +4,8 @@ name: CI
 
 # Controls when the workflow will run
 on:
-#  pull_request_target:
-#    types: [opened, reopened, synchronize]
-#
-  # reusable
-  workflow_call:
+  push:
+    branches: [ci/ntfc-intel64-official]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -59,21 +56,13 @@ jobs:
       run: |
         echo "Current Action URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
-    - name: Generate App Token
-      id: app-token
-      uses: actions/create-github-app-token@v1
-      with:
-        app-id: ${{ secrets.APP_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
-        owner: open-vela
-
     - name: Parse PR Description for Dependencies
       id: parse-dependencies
       env:
         PR_BODY: ${{ github.event.pull_request.body }}
         PR_REPO: ${{ github.repository }}
         PR_NUM: ${{ github.event.pull_request.number }}
-        CI_PAT: ${{ steps.app-token.outputs.token }}
+        CI_PAT: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -x
         printf '%s\n' "$PR_BODY" > pull_request.body.txt
@@ -227,64 +216,11 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [goldfish, sil, aurix, flagchip, qemu, ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]  # grouped by vendor / platform
+        group: [ntfc-intel64]  # grouped by vendor / platform
         include:
-          - group: goldfish
+          - group: ntfc-intel64
             tasks:
-              - goldfish-armeabi-v7a-ap@cmake
-              - goldfish-arm64-v8a-ap@cmake
-              - goldfish-x86_64-ap@cmake
-          - group: sil
-            tasks:
-              - vendor/openvela/boards/sil/configs/ksil_arm32r_nsh_bl@cmake
-              - vendor/openvela/boards/sil/configs/ksil_arm32r_nsh_core0@cmake
-              - vendor/openvela/boards/sil/configs/sil_arm32r_nsh_bl@cmake
-              - vendor/openvela/boards/sil/configs/sil_arm32r_nsh_core0@cmake
-          - group: aurix
-            tasks:
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/bl@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core0@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core1@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core2@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core3@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core4@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core5@cmake
-          - group: flagchip
-            tasks:
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/bl@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/core0@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/kbl@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/kcore0@cmake
-          - group: qemu
-            tasks:
-              - qemu-arm64-v8a-ap@cmake
-              - qemu-arm64-v8a-server@cmake
-              - qemu-armeabi-v7a-ap@cmake
-              - qemu-armeabi-v7a-bl@cmake
-              - qemu-armeabi-v7a-server@cmake
-              - qemu-armeabi-v7a-tee@cmake
-              - qemu-armeabi-v8m-ap@cmake
-          # Runtime-test groups, one configuration each. "ntfc" in the
-          # suffix runs the NuttX Test Framework for Community on the build
-          # output; "cmake" selects the CMake build, as in Apache's CI.
-          - group: ntfc-sim
-            tasks:
-              - sim:citest@ntfc
-          - group: ntfc-rv32
-            tasks:
-              - rv-virt:citest@ntfc
-          - group: ntfc-rv64
-            tasks:
-              - rv-virt:citest64@ntfc
-          - group: ntfc-sabre
-            tasks:
-              - sabre-6quad:citest@ntfc
-          - group: ntfc-armv8a
-            tasks:
-              - qemu-armv8a:citest@cmake@ntfc
-          - group: ntfc-armv8a-smp
-            tasks:
-              - qemu-armv8a:citest_smp@cmake@ntfc
+              - qemu-intel64:citest_smp@ntfc
       fail-fast: false
     steps:
       - name: Maximize build space
@@ -316,9 +252,9 @@ jobs:
           SNAPSHOT_FILE: ${{ needs.setup.outputs.SNAPSHOT }}
         run: |
           ~/bin/repo init -u https://github.com/open-vela/manifests -b "$PR_BASE_REF" -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
+          # Sync the latest openvela.xml rather than the setup job's pinned
+          # snapshot; the snapshot is still copied for the PR-mode lookups.
           cp "$SNAPSHOT_FILE"  .repo/manifests/
-          echo "~/bin/repo init -m $SNAPSHOT_FILE --group=default,platform-linux --depth=1 --git-lfs"
-          ~/bin/repo init -m "$SNAPSHOT_FILE" --group=default,platform-linux --depth=1 --git-lfs
           echo "REPO_INIT=true" >> $GITHUB_ENV
 
       - name: Repo Sync
@@ -328,8 +264,26 @@ jobs:
           git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           df -h
           ~/bin/repo sync -c -d --no-tags -j12
+          echo "=== synced revisions ==="
+          ~/bin/repo forall nuttx apps tests -c 'echo "$REPO_PATH $(git rev-parse HEAD)"' || true
           df -h
           pwd && ls -atl .
+
+      - name: Apply open-vela/nuttx PR 406 and PR 405
+        run: |
+          set -e
+          cd nuttx
+          for pr in 406 405; do
+            git fetch --depth=50 https://github.com/open-vela/nuttx.git \
+              refs/pull/$pr/head:nuttx-pr-$pr
+            echo "nuttx PR $pr head: $(git rev-parse nuttx-pr-$pr)"
+          done
+          test "$(git rev-parse nuttx-pr-406)" = 46f17ee26a8261953985d39013ce47faa7ac095c
+          test "$(git rev-parse nuttx-pr-405)" = 8c8701c630ee3719c8898ee12165223511f12805
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \
+            $(git rev-list --reverse nuttx-pr-406 --not HEAD) $(git rev-list --reverse nuttx-pr-405 --not HEAD)
+          git log --oneline -14
+          cd -
 
       - name: Fetch PR
         if: ${{ github.event_name == 'pull_request_target' }}
@@ -714,20 +668,12 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Generate App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: open-vela
-
       - name: Post Processing
         env:
           CI_TASKS_STATUS: ${{ needs.ci-tasks.result }}
           DEPENDS_ON: ${{ needs.setup.outputs.DEPENDS_ON }}
           CURRENT_ACTION_URL: ${{ needs.setup.outputs.CURRENT_ACTION_URL }}
-          CI_PAT: ${{ steps.app-token.outputs.token }}
+          CI_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Job status: ${CI_TASKS_STATUS}"
 
