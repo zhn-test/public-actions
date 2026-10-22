@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/ntfc-intel64-pr405v3]
+    branches: [ci/ntfc-intel64-405-406-fixups]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -281,6 +281,18 @@ jobs:
           git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \
             $(git rev-list --reverse nuttx-pr-406 --not HEAD) nuttx-pr-405
           git log --oneline -12
+          cd -
+
+      - name: Apply qemu-intel64 TMPFS and board bringup commits
+        run: |
+          set -e
+          cd nuttx
+          git fetch --depth=20 https://github.com/zhangning21/nuttx_zhn-test.git \
+            ci/ntfc-intel64-fixups:intel64-fixups
+          test "$(git rev-parse intel64-fixups)" = c8775c90f95178a8ada102eeb1a5b6a0d4fbb634
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x \
+            41ad1e2e7c7e9cf8522bbb3945917d63890890ef c8775c90f95178a8ada102eeb1a5b6a0d4fbb634
+          git log --oneline -3
           cd -
 
       - name: Fetch PR
