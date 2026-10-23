@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/full-ci-ubuntu2404]
+    branches: [ci/full-ci-root-reserve]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -279,7 +279,7 @@ jobs:
       - name: Maximize build space
         uses: easimon/maximize-build-space@v10
         with:
-          root-reserve-mb: 4096
+          root-reserve-mb: 10240
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
