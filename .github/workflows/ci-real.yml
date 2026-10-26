@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/full-ci-root-reserve]
+    branches: [ci/repro-timedmqueue]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -216,62 +216,30 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [goldfish, sil, aurix, flagchip, qemu, ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp]  # grouped by vendor / platform
+        group: [ntfc-armv8a-smp-r1, ntfc-armv8a-smp-r2, ntfc-armv8a-smp-r3, ntfc-armv8a-smp-r4, ntfc-armv8a-smp-r5, ntfc-armv8a-smp-r6, ntfc-armv8a-smp-r7, ntfc-armv8a-smp-r8]
         include:
-          - group: goldfish
+          - group: ntfc-armv8a-smp-r1
             tasks:
-              - goldfish-armeabi-v7a-ap@cmake
-              - goldfish-arm64-v8a-ap@cmake
-              - goldfish-x86_64-ap@cmake
-          - group: sil
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r2
             tasks:
-              - vendor/openvela/boards/sil/configs/ksil_arm32r_nsh_bl@cmake
-              - vendor/openvela/boards/sil/configs/ksil_arm32r_nsh_core0@cmake
-              - vendor/openvela/boards/sil/configs/sil_arm32r_nsh_bl@cmake
-              - vendor/openvela/boards/sil/configs/sil_arm32r_nsh_core0@cmake
-          - group: aurix
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r3
             tasks:
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/bl@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core0@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core1@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core2@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core3@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core4@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core5@cmake
-          - group: flagchip
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r4
             tasks:
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/bl@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/core0@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/kbl@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/kcore0@cmake
-          - group: qemu
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r5
             tasks:
-              - qemu-arm64-v8a-ap@cmake
-              - qemu-arm64-v8a-server@cmake
-              - qemu-armeabi-v7a-ap@cmake
-              - qemu-armeabi-v7a-bl@cmake
-              - qemu-armeabi-v7a-server@cmake
-              - qemu-armeabi-v7a-tee@cmake
-              - qemu-armeabi-v8m-ap@cmake
-          # Runtime-test groups, one configuration each. "ntfc" in the
-          # suffix runs the NuttX Test Framework for Community on the build
-          # output; "cmake" selects the CMake build, as in Apache's CI.
-          - group: ntfc-sim
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r6
             tasks:
-              - sim:citest@ntfc
-          - group: ntfc-rv32
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r7
             tasks:
-              - rv-virt:citest@ntfc
-          - group: ntfc-rv64
-            tasks:
-              - rv-virt:citest64@ntfc
-          - group: ntfc-sabre
-            tasks:
-              - sabre-6quad:citest@ntfc
-          - group: ntfc-armv8a
-            tasks:
-              - qemu-armv8a:citest@cmake@ntfc
-          - group: ntfc-armv8a-smp
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r8
             tasks:
               - qemu-armv8a:citest_smp@cmake@ntfc
       fail-fast: false
@@ -614,57 +582,162 @@ jobs:
       # Own step, own timeout: a step timeout is an ordinary step failure, so the
       # collection and upload below stay reachable. A job timeout is reported as
       # cancelled, under which the Archive condition evaluates false.
+      - name: Write repro script
+        if: ${{ startsWith(matrix.group, 'ntfc') }}
+        run: |
+          cat > "${{ github.workspace }}/repro.py" <<'REPRO_EOF'
+          #!/usr/bin/env python3
+          """Run ostest on qemu-armv8a:citest_smp repeatedly and dump every thread
+          with gdb when it stops producing output.
+
+          Verification only.  Usage: repro.py <nuttx-elf> <outdir> <iterations>
+          """
+
+          import os
+          import select
+          import subprocess
+          import sys
+          import time
+
+          ELF, OUT, ITER = sys.argv[1], sys.argv[2], int(sys.argv[3])
+          IDLE = int(os.environ.get("REPRO_IDLE", "90"))      # s without output = hang
+          BOOT = int(os.environ.get("REPRO_BOOT", "120"))     # s to reach the prompt
+          RUN = int(os.environ.get("REPRO_RUN", "900"))       # s for a whole ostest
+          PORT = int(os.environ.get("REPRO_GDBPORT", "1234"))
+          NUTTX = os.environ.get("REPRO_NUTTX", "/workspace/nuttx")
+
+          QEMU = [
+              "qemu-system-aarch64", "-cpu", "cortex-a53", "-smp", "4",
+              "-machine", "virt,virtualization=on,gic-version=3",
+              "-net", "none", "-nographic", "-kernel", ELF,
+              "-gdb", f"tcp::{PORT}",
+          ]
+
+          GDB_CMDS = f"""
+          set pagination off
+          set confirm off
+          set print pretty off
+          target remote :{PORT}
+          info threads
+          thread apply all bt
+          source {NUTTX}/tools/pynuttx/gdbinit.py
+          ps
+          info nxthreads
+          nxthread apply all bt
+          p g_mqfree
+          detach
+          quit
+          """
+
+
+          def log(msg):
+              print(msg, flush=True)
+
+
+          def read_until(proc, buf, want, timeout, idle):
+              """Read qemu stdout until `want` appears.  Returns (status, buf)."""
+              end = time.time() + timeout
+              last = time.time()
+              fd = proc.stdout.fileno()
+              while True:
+                  now = time.time()
+                  if want is not None and want in buf[-4096:]:
+                      return "ok", buf
+                  if now > end:
+                      return "timeout", buf
+                  if now - last > idle:
+                      return "hang", buf
+                  r, _, _ = select.select([fd], [], [], 1)
+                  if r:
+                      chunk = os.read(fd, 65536)
+                      if not chunk:
+                          return "eof", buf
+                      buf += chunk.decode("utf-8", "replace")
+                      last = time.time()
+
+
+          def dump_gdb(path):
+              cmd = os.path.join(OUT, "gdb.cmds")
+              with open(cmd, "w") as f:
+                  f.write(GDB_CMDS)
+              with open(path, "w") as f:
+                  subprocess.run(["gdb-multiarch", "-q", "-batch", "-nx", "-x", cmd,
+                                  ELF], stdout=f, stderr=subprocess.STDOUT,
+                                 timeout=600)
+
+
+          def main():
+              os.makedirs(OUT, exist_ok=True)
+              summary = []
+              for i in range(1, ITER + 1):
+                  proc = subprocess.Popen(QEMU, stdin=subprocess.PIPE,
+                                          stdout=subprocess.PIPE,
+                                          stderr=subprocess.STDOUT)
+                  buf = ""
+                  st, buf = read_until(proc, buf, "nsh> ", BOOT, BOOT)
+                  if st != "ok":
+                      result = f"boot-{st}"
+                  else:
+                      proc.stdin.write(b"ostest\n")
+                      proc.stdin.flush()
+                      st, buf = read_until(proc, buf, "ostest_main: Exiting with status",
+                                           RUN, IDLE)
+                      if st == "ok":
+                          result = "pass"
+                          st, buf = read_until(proc, buf, "nsh> ", 30, 30)
+                      else:
+                          result = st
+                  tail = "\n".join(buf.splitlines()[-3:])
+                  log(f"[{i}/{ITER}] {result} | {tail!r}")
+                  con = os.path.join(OUT, f"iter{i:03d}-{result}.console.txt")
+                  if result != "pass":
+                      with open(con, "w") as f:
+                          f.write(buf)
+                  if result in ("hang", "timeout"):
+                      dump = os.path.join(OUT, f"iter{i:03d}-gdb.txt")
+                      log(f"    dumping threads to {dump}")
+                      try:
+                          dump_gdb(dump)
+                      except Exception as e:      # keep going on gdb trouble
+                          log(f"    gdb failed: {e}")
+                  proc.kill()
+                  proc.wait()
+                  summary.append(result)
+                  if result in ("hang", "timeout") and os.environ.get("REPRO_STOP"):
+                      break
+              counts = {k: summary.count(k) for k in sorted(set(summary))}
+              log(f"SUMMARY {counts}")
+              with open(os.path.join(OUT, "summary.txt"), "w") as f:
+                  f.write(f"{counts}\n" + "\n".join(summary) + "\n")
+
+
+          if __name__ == "__main__":
+              main()
+          REPRO_EOF
+
       - name: Run NTFC runtime tests
         if: ${{ startsWith(matrix.group, 'ntfc') }}
-        timeout-minutes: 130
+        timeout-minutes: 300
         env:
           CI_WORKSPACE: ${{ github.workspace }}
-          CI_MATRIX_GROUP: ${{ matrix.group }}
-          NTFC_CONTAINER: ntfc-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -e
           cd "${CI_WORKSPACE}"
-          task="${NTFC_TASK}"
-          ci_artifact_name="${NTFC_ARTIFACT}"
-          if [ -z "$task" ] || [ -z "$ci_artifact_name" ]; then
-            echo "::error::the ntfc group ran no task that set NTFC_TASK"
-            exit 1
-          fi
-          echo "=== Run NTFC runtime test: $task ==="
-          ntfc_board="${task%%:*}"
-          ntfc_config="${task##*:}"
-          ntfc_cfgdir=$(ls -d nuttx/boards/*/*/"${ntfc_board}"/configs/"${ntfc_config}" 2>/dev/null | head -1)
-          if [ -z "$ntfc_cfgdir" ] || [ ! -f "$ntfc_cfgdir/config.yaml" ] || [ ! -x "$ntfc_cfgdir/run.sh" ]; then
-            echo "::error::$task is flagged ntfc but needs both config.yaml and an executable run.sh in its board config directory"
-            exit 1
-          fi
-          echo "NTFC metadata: $ntfc_cfgdir"
-          # Installed into a throwaway virtualenv so the image's pinned pytest
-          # is left alone. NTFCDIR stays outside "${CI_MATRIX_GROUP}", which
-          # holds the artifacts that get uploaded. The container is named rather
-          # than --rm so the collector below can stop it on a timeout.
-          docker run --name "${NTFC_CONTAINER}" \
-            -v "${CI_WORKSPACE}":/workspace \
-            -w /workspace \
-            -e NTFCDIR=/workspace/.ntfc \
-            -e CURRENTCONFDIR="/workspace/${ntfc_cfgdir}" \
-            -e ARTIFACTCONFDIR="/workspace/${ci_artifact_name}" \
+          out="${NTFC_ARTIFACT}/repro"
+          mkdir -p "$out"
+          cp repro.py "$out/"
+          cp "${NTFC_ARTIFACT}/nuttx" "$out/nuttx.elf"
+          cp "${NTFC_ARTIFACT}/.config" "$out/config.txt"
+          grep -E '^CONFIG_(STDIO_LINEBUFFER|STDIO_BUFFER_SIZE|SMP_NCPUS|SCHED_TICKLESS|TESTING_OSTEST)' "$out/config.txt" || true
+          docker run --rm \
+            -v "${CI_WORKSPACE}":/workspace -w /workspace \
+            -e REPRO_STOP=1 \
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-            /bin/bash -c "set -e && python3 --version && \
-              python3 -m venv /workspace/.ntfc-venv && \
-              /workspace/.ntfc-venv/bin/pip install --quiet \
-                \"ntfc @ git+https://github.com/apache/nuttx-ntfc.git@9e17dbeacd02c9081dd0512dac5e6a3cf4730167\" \
-                pytest==9.1.1 && \
-              export PATH=/workspace/.ntfc-venv/bin:\$PATH && ntfc --help > /dev/null && \
-              rm -rf /workspace/.ntfc && mkdir -p /workspace/.ntfc/external && \
-              git clone --depth=1 --branch release-0.0.2 \
-                https://github.com/apache/nuttx-ntfc-testing.git \
-                /workspace/.ntfc/external/nuttx-testing && \
-              cp -a ${ci_artifact_name}/. nuttx/ && \
-              mkdir -p nuttx/build && cp -a ${ci_artifact_name}/. nuttx/build/ && \
-              ls -atl nuttx/nuttx nuttx/.config && \
-              bash /workspace/${ntfc_cfgdir}/run.sh"
-          echo "NTFC runtime test passed: $task"
+            /bin/bash -c "set -e && \
+              apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends gdb-multiarch >/dev/null && \
+              gdb-multiarch --version | head -1 && qemu-system-aarch64 --version | head -1 && \
+              python3 /workspace/repro.py /workspace/${out}/nuttx.elf /workspace/${out} 15"
+          cat "$out/summary.txt"
 
       # run.sh only moves its results after ntfc test returns, so a timeout
       # leaves them in nuttx/, outside the uploaded directory. Runs on any
