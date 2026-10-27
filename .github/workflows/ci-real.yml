@@ -4,11 +4,8 @@ name: CI
 
 # Controls when the workflow will run
 on:
-#  pull_request_target:
-#    types: [opened, reopened, synchronize]
-#
-  # reusable
-  workflow_call:
+  push:
+    branches: [ci/intel64-rmutex-fix]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -59,21 +56,13 @@ jobs:
       run: |
         echo "Current Action URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
-    - name: Generate App Token
-      id: app-token
-      uses: actions/create-github-app-token@v1
-      with:
-        app-id: ${{ secrets.APP_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
-        owner: open-vela
-
     - name: Parse PR Description for Dependencies
       id: parse-dependencies
       env:
         PR_BODY: ${{ github.event.pull_request.body }}
         PR_REPO: ${{ github.repository }}
         PR_NUM: ${{ github.event.pull_request.number }}
-        CI_PAT: ${{ steps.app-token.outputs.token }}
+        CI_PAT: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -x
         printf '%s\n' "$PR_BODY" > pull_request.body.txt
@@ -227,65 +216,36 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [goldfish, sil, aurix, flagchip, qemu, ntfc-sim, ntfc-rv32, ntfc-rv64, ntfc-sabre, ntfc-armv8a, ntfc-armv8a-smp, ntfc-intel64]  # grouped by vendor / platform
+        group: [ntfc-intel64-r1, ntfc-intel64-r2, ntfc-intel64-r3, ntfc-intel64-r4, ntfc-intel64-r5, ntfc-intel64-r6, ntfc-intel64-r7, ntfc-intel64-r8, ntfc-intel64-r9, ntfc-intel64-r10]  # grouped by vendor / platform
         include:
-          - group: goldfish
+          - group: ntfc-intel64-r1
             tasks:
-              - goldfish-armeabi-v7a-ap@cmake
-              - goldfish-arm64-v8a-ap@cmake
-              - goldfish-x86_64-ap@cmake
-          - group: sil
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r2
             tasks:
-              - vendor/openvela/boards/sil/configs/ksil_arm32r_nsh_bl@cmake
-              - vendor/openvela/boards/sil/configs/ksil_arm32r_nsh_core0@cmake
-              - vendor/openvela/boards/sil/configs/sil_arm32r_nsh_bl@cmake
-              - vendor/openvela/boards/sil/configs/sil_arm32r_nsh_core0@cmake
-          - group: aurix
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r3
             tasks:
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/bl@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core0@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core1@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core2@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core3@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core4@cmake
-              - vendor/infineon/boards/aurix/tc4d9_evb/configs/core5@cmake
-          - group: flagchip
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r4
             tasks:
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/bl@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/core0@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/kbl@cmake
-              - vendor/flagchip/boards/fc7300/fc7300f8m-evb/configs/kcore0@cmake
-          - group: qemu
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r5
             tasks:
-              - qemu-arm64-v8a-ap@cmake
-              - qemu-arm64-v8a-server@cmake
-              - qemu-armeabi-v7a-ap@cmake
-              - qemu-armeabi-v7a-bl@cmake
-              - qemu-armeabi-v7a-server@cmake
-              - qemu-armeabi-v7a-tee@cmake
-              - qemu-armeabi-v8m-ap@cmake
-          # Runtime-test groups, one configuration each. "ntfc" in the
-          # suffix runs the NuttX Test Framework for Community on the build
-          # output; "cmake" selects the CMake build, as in Apache's CI.
-          - group: ntfc-sim
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r6
             tasks:
-              - sim:citest@ntfc
-          - group: ntfc-rv32
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r7
             tasks:
-              - rv-virt:citest@ntfc
-          - group: ntfc-rv64
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r8
             tasks:
-              - rv-virt:citest64@ntfc
-          - group: ntfc-sabre
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r9
             tasks:
-              - sabre-6quad:citest@ntfc
-          - group: ntfc-armv8a
-            tasks:
-              - qemu-armv8a:citest@cmake@ntfc
-          - group: ntfc-armv8a-smp
-            tasks:
-              - qemu-armv8a:citest_smp@cmake@ntfc
-          - group: ntfc-intel64
+              - qemu-intel64:citest_smp@ntfc
+          - group: ntfc-intel64-r10
             tasks:
               - qemu-intel64:citest_smp@ntfc
       fail-fast: false
@@ -320,8 +280,6 @@ jobs:
         run: |
           ~/bin/repo init -u https://github.com/open-vela/manifests -b "$PR_BASE_REF" -m openvela.xml --group=default,platform-linux --depth=1 --git-lfs
           cp "$SNAPSHOT_FILE"  .repo/manifests/
-          echo "~/bin/repo init -m $SNAPSHOT_FILE --group=default,platform-linux --depth=1 --git-lfs"
-          ~/bin/repo init -m "$SNAPSHOT_FILE" --group=default,platform-linux --depth=1 --git-lfs
           echo "REPO_INIT=true" >> $GITHUB_ENV
 
       - name: Repo Sync
@@ -333,6 +291,19 @@ jobs:
           ~/bin/repo sync -c -d --no-tags -j12
           df -h
           pwd && ls -atl .
+
+      - name: Apply rmutex dead-holder fix (verification only)
+        run: |
+          set -e
+          cd nuttx
+          echo "nuttx base: $(git rev-parse HEAD)"
+          git fetch --depth=5 https://github.com/zhangning21/nuttx_zhn-test.git \
+            refs/heads/fix/rmutex-dead-holder:rmutex-fix
+          test "$(git rev-parse rmutex-fix)" = caa4743b17b56aa4b8c4c32e04b37afcbd6a5b07
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x rmutex-fix
+          git log --oneline -3
+          echo "rmutex count resets: $(grep -c 'rmutex->count = 0;' include/nuttx/mutex.h)"
+          cd -
 
       - name: Fetch PR
         if: ${{ github.event_name == 'pull_request_target' }}
@@ -730,7 +701,7 @@ jobs:
           CI_TASKS_STATUS: ${{ needs.ci-tasks.result }}
           DEPENDS_ON: ${{ needs.setup.outputs.DEPENDS_ON }}
           CURRENT_ACTION_URL: ${{ needs.setup.outputs.CURRENT_ACTION_URL }}
-          CI_PAT: ${{ steps.app-token.outputs.token }}
+          CI_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Job status: ${CI_TASKS_STATUS}"
 
