@@ -5,7 +5,7 @@ name: CI
 # Controls when the workflow will run
 on:
   push:
-    branches: [ci/repro-timedmqueue]
+    branches: [ci/repro-timedmqueue-fix]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 permissions:
@@ -216,7 +216,7 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        group: [ntfc-armv8a-smp-r1, ntfc-armv8a-smp-r2, ntfc-armv8a-smp-r3, ntfc-armv8a-smp-r4, ntfc-armv8a-smp-r5, ntfc-armv8a-smp-r6, ntfc-armv8a-smp-r7, ntfc-armv8a-smp-r8, ntfc-armv8a-smp-r9, ntfc-armv8a-smp-r10, ntfc-armv8a-smp-r11, ntfc-armv8a-smp-r12, ntfc-armv8a-smp-r13, ntfc-armv8a-smp-r14, ntfc-armv8a-smp-r15, ntfc-armv8a-smp-r16]
+        group: [ntfc-armv8a-smp-r1, ntfc-armv8a-smp-r2, ntfc-armv8a-smp-r3, ntfc-armv8a-smp-r4, ntfc-armv8a-smp-r5, ntfc-armv8a-smp-r6, ntfc-armv8a-smp-r7, ntfc-armv8a-smp-r8, ntfc-armv8a-smp-r9, ntfc-armv8a-smp-r10, ntfc-armv8a-smp-r11, ntfc-armv8a-smp-r12, ntfc-armv8a-smp-r13, ntfc-armv8a-smp-r14, ntfc-armv8a-smp-r15, ntfc-armv8a-smp-r16, ntfc-armv8a-smp-r17, ntfc-armv8a-smp-r18, ntfc-armv8a-smp-r19, ntfc-armv8a-smp-r20]
         include:
           - group: ntfc-armv8a-smp-r1
             tasks:
@@ -264,6 +264,18 @@ jobs:
             tasks:
               - qemu-armv8a:citest_smp@cmake@ntfc
           - group: ntfc-armv8a-smp-r16
+            tasks:
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r17
+            tasks:
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r18
+            tasks:
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r19
+            tasks:
+              - qemu-armv8a:citest_smp@cmake@ntfc
+          - group: ntfc-armv8a-smp-r20
             tasks:
               - qemu-armv8a:citest_smp@cmake@ntfc
       fail-fast: false
@@ -314,6 +326,18 @@ jobs:
           ~/bin/repo forall nuttx apps tests -c 'echo "$REPO_PATH $(git rev-parse HEAD)"' || true
           df -h
           pwd && ls -atl .
+
+      - name: Apply rmutex dead-holder fix (verification only)
+        run: |
+          set -e
+          cd nuttx
+          git fetch --depth=5 https://github.com/zhangning21/nuttx_zhn-test.git \
+            refs/heads/fix/rmutex-dead-holder:rmutex-fix
+          test "$(git rev-parse rmutex-fix)" = caa4743b17b56aa4b8c4c32e04b37afcbd6a5b07
+          git -c user.email=ci@example.invalid -c user.name=ci cherry-pick -x rmutex-fix
+          git log --oneline -2
+          grep -c 'rmutex->count = 0;' include/nuttx/mutex.h
+          cd -
 
       - name: Fetch PR
         if: ${{ github.event_name == 'pull_request_target' }}
